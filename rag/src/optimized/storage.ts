@@ -1,5 +1,5 @@
 import { createHash, randomUUID } from 'node:crypto';
-import { mkdir, readFile, rename, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, rename, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 
 export function hash(value: unknown): string {
@@ -15,6 +15,10 @@ export async function optionalJson<T>(file: string): Promise<T | undefined> {
 export async function atomicJson(file: string, value: unknown): Promise<void> {
   await mkdir(path.dirname(file), { recursive: true });
   const temporary = `${file}.${randomUUID()}.tmp`;
-  await writeFile(temporary, JSON.stringify(value));
-  await rename(temporary, file);
+  try {
+    await writeFile(temporary, JSON.stringify(value));
+    await rename(temporary, file);
+  } finally {
+    await rm(temporary, { force: true }).catch(() => undefined);
+  }
 }

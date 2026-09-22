@@ -84,8 +84,11 @@ documents or shared logs.
 rag\.runtime\chroma-venv\Scripts\python.exe -m piptools compile --generate-hashes --allow-unsafe --resolver=backtracking --output-file rag\requirements-chroma.lock.txt rag\requirements-chroma.txt
 ```
 
-The launcher uses Chroma's Rust server through `chroma run` and restricts it to loopback.
-CVE-2026-45829 affects the Python FastAPI backend, which this project does not start.
+The launcher restricts Chroma and Ollama to loopback. It uses the default Rust server
+through `chroma run`, not Chroma's Python FastAPI backend. The
+[upstream report](https://github.com/chroma-core/chroma/issues/6717) explains this
+distinction. Python vulnerability scanners still flag the installed `chromadb` package
+because it also contains that unused backend. No patched package is currently available.
 The private environment isolates Python dependencies, but does not restrict process
 access to the Windows file system.
 

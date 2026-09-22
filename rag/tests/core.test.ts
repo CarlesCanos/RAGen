@@ -12,6 +12,7 @@ import { atomicJson, readJson, hash } from '../src/optimized/storage.ts';
 import { fixtures } from '../src/evaluation/fixtures.ts';
 import { resolveModel, type ModelInfo } from '../src/optimized/ollama.ts';
 import { createChromaClient, isLoopbackHost } from '../src/shared/chroma.ts';
+import { isLoopbackHttpUrl } from '../src/shared/network.ts';
 
 test('Chroma clients are restricted to loopback', () => {
   assert.equal(isLoopbackHost('localhost'), true);
@@ -22,6 +23,15 @@ test('Chroma clients are restricted to loopback', () => {
     () => createChromaClient({ host: '192.168.1.10', port: 8000, ssl: false }),
     /loopback/
   );
+});
+
+test('Ollama URLs are restricted to HTTP loopback endpoints', () => {
+  assert.equal(isLoopbackHttpUrl('http://127.0.0.1:11434'), true);
+  assert.equal(isLoopbackHttpUrl('http://localhost:11434'), true);
+  assert.equal(isLoopbackHttpUrl('http://[::1]:11434'), true);
+  assert.equal(isLoopbackHttpUrl('https://example.com'), false);
+  assert.equal(isLoopbackHttpUrl('http://127.0.0.1:11434/proxy'), false);
+  assert.equal(isLoopbackHttpUrl('file:///tmp/ollama'), false);
 });
 
 test('BM25 uses postings, handles Unicode, unknown terms and prototype names', () => {
@@ -70,14 +80,14 @@ test('atomic snapshots remain readable; cache keys change with model/index/confi
 test('configuration: process environment overrides .env which overrides example', async () => {
   const dir = await mkdtemp(path.join(tmpdir(), 'rag-env-'));
   try {
-    await writeFile(path.join(dir, '.env.example'), 'OLLAMA_CHAT_MODEL=example\nCHROMA_PORT=8001\n');
-    await writeFile(path.join(dir, '.env'), 'OLLAMA_CHAT_MODEL=local\n');
+    await writeFile(path.join(dir, '.env.example'), 'OLLAMA_EMBED_MODEL=example\nCHROMA_PORT=8001\n');
+    await writeFile(path.join(dir, '.env'), 'OLLAMA_EMBED_MODEL=local\n');
     const source = `import {getProjectEnv} from ${JSON.stringify(pathToFileURL(path.resolve('src/env.ts')).href)}; console.log(JSON.stringify(getProjectEnv()));`;
-    const base = { ...process.env }; delete base.OLLAMA_CHAT_MODEL; delete base.CHROMA_PORT;
+    const base = { ...process.env }; delete base.OLLAMA_EMBED_MODEL; delete base.CHROMA_PORT;
     const run = (env: NodeJS.ProcessEnv) => JSON.parse(spawnSync(process.execPath, ['--input-type=module', '-e', source], { cwd: dir, env, encoding: 'utf8' }).stdout);
-    assert.equal(run(base).ollamaChatModel, 'local');
+    assert.equal(run(base).ollamaEmbedModel, 'local');
     assert.equal(run(base).chromaPort, 8001);
-    assert.equal(run({ ...base, OLLAMA_CHAT_MODEL: 'process' }).ollamaChatModel, 'process');
+    assert.equal(run({ ...base, OLLAMA_EMBED_MODEL: 'process' }).ollamaEmbedModel, 'process');
   } finally { await rm(dir, { recursive: true }); }
 });
 

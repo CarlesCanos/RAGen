@@ -12,7 +12,7 @@ $chromaDataPath = Join-Path $projectRoot ".chroma"
 Write-Host "Starting Chroma server..."
 Write-Host "Binary: $chromaExe"
 Write-Host "Data path: $chromaDataPath"
-Write-Host "URL: http://localhost:8000"
+Write-Host "URL: http://127.0.0.1:8000"
 
 # `chroma run` starts Chroma's Rust server. Do not replace it with the Python/FastAPI backend.
-& $chromaExe run --path $chromaDataPath
+& $chromaExe run --path $chromaDataPath --host 127.0.0.1 --port 8000

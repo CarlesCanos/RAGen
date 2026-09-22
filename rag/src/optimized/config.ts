@@ -1,8 +1,10 @@
 import { getProjectEnv } from '../env.ts';
+import { assertLoopbackHttpUrl } from '../shared/network.ts';
 
 export type Mode = 'auto' | 'fast' | 'deep';
 export function config() {
   const env = getProjectEnv();
+  assertLoopbackHttpUrl(env.ollamaUrl, 'OLLAMA_URL');
   const number = (key: string, fallback: number, min = 1) => {
     const value = Number(process.env[key] ?? fallback);
     if (!Number.isInteger(value) || value < min) throw new Error(`${key} must be an integer >= ${min}`);

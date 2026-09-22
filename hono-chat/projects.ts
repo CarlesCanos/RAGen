@@ -96,9 +96,6 @@ export function projectFiles(project: Project) {
   return {
     root,
     chunks: path.join(root, 'chunks.json'),
-    embeddings: path.join(root, 'chunks.embeddings.json'),
-    knowledge: path.join(root, 'knowledge-cache.json'),
-    queryCache: path.join(root, 'query-cache.json'),
     conversation: path.join(root, 'conversation.json'),
     index: path.join(root, 'index'),
     collection: `local_rag_${project.id.replace(/-/g, '_')}`,
@@ -113,9 +110,6 @@ export function projectEnvironment(project: Project): NodeJS.ProcessEnv {
     DOCS_DIR: project.docsPath,
     RAG_CHAT_MODEL: project.model,
     CHUNKS_PATH: files.chunks,
-    EMBEDDINGS_PATH: files.embeddings,
-    KNOWLEDGE_CACHE_PATH: files.knowledge,
-    QUERY_CACHE_PATH: files.queryCache,
     RAG_INDEX_DIR: files.index,
     CHROMA_COLLECTION: files.collection,
   };

@@ -28,14 +28,12 @@ const reindexSettings = document.querySelector('#reindex-settings');
 
 const maintenanceHeaders = { 'X-Local-RAG': '1', 'Content-Type': 'application/json' };
 const managedSettings = new Set([
-  'DOCS_DIR', 'RAG_CHAT_MODEL', 'RAG_INDEX_DIR', 'CHUNKS_PATH', 'EMBEDDINGS_PATH',
-  'KNOWLEDGE_CACHE_PATH', 'QUERY_CACHE_PATH', 'CHROMA_COLLECTION',
+  'DOCS_DIR', 'RAG_CHAT_MODEL', 'RAG_INDEX_DIR', 'CHUNKS_PATH', 'CHROMA_COLLECTION',
 ]);
 const reindexKeys = new Set([
   'DOCS_EXTENSIONS', 'PDF_TO_TEXT_BIN', 'OLLAMA_URL', 'OLLAMA_EMBED_MODEL',
   'CHROMA_HOST', 'CHROMA_PORT', 'CHROMA_SSL', 'SPLIT_TARGET_CHARS',
-  'SPLIT_MAX_CHARS', 'SPLIT_OVERLAP_CHARS', 'EMBED_BATCH_SIZE',
-  'CHROMA_INGEST_BATCH_SIZE',
+  'SPLIT_MAX_CHARS', 'SPLIT_OVERLAP_CHARS',
 ]);
 
 let projects = [];

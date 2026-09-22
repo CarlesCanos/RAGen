@@ -1,4 +1,4 @@
-import { readFile } from "node:fs/promises";
+import { readFile, stat } from "node:fs/promises";
 import path from "node:path";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
@@ -7,6 +7,7 @@ import { getProjectEnv } from "../env.ts";
 import type { LoadedDocument } from "../models/document.models.ts";
 
 const execFileAsync = promisify(execFile);
+export const MAX_DOCUMENT_BYTES = 64 * 1024 * 1024;
 
 type PdfTextItem = {
   str?: string;
@@ -14,6 +15,10 @@ type PdfTextItem = {
 };
 
 export async function loadDocument(filePath: string): Promise<LoadedDocument> {
+  const fileStats = await stat(filePath);
+  if (fileStats.size > MAX_DOCUMENT_BYTES) {
+    throw new Error(`Document "${path.basename(filePath)}" exceeds the 64 MiB limit.`);
+  }
   const extension = path.extname(filePath).toLowerCase();
 
   if (isMarkdownExtension(extension)) {

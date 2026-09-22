@@ -5,27 +5,18 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "setup:models": "sh ./scripts/install-models.sh",
     "start:chroma": "powershell -ExecutionPolicy Bypass -File ./scripts/start-chroma.ps1",
     "prepare-rag": "node src/prepareRag.ts",
-    "prepare-rag:legacy": "node src/ensureChromaCollection.ts && npm run split && npm run cache:clear && npm run cache:knowledge && npm run embed && npm run ingest:chroma",
     "setup:rag": "node src/setupRag.ts",
     "doctor": "node src/doctor.ts",
     "check:ready": "node src/checkReady.ts",
     "rollback:rag": "node src/rollbackRag.ts",
-    "ask:legacy": "node src/askLegacy.ts --answer-only",
     "test": "node --test tests/*.test.ts",
     "typecheck": "tsc --noEmit",
     "evaluate": "node src/evaluate.ts",
     "split": "node src/splitMarkdown.ts",
-    "cache:knowledge": "node src/buildKnowledgeCache.ts",
-    "cache:clear": "node src/clearQueryCache.ts",
-    "embed": "node src/embedChunks.ts",
-    "ingest:chroma": "node src/ingestChroma.ts",
-    "delete:chroma": "node src/deleteChromaCollection.ts",
     "ask": "node src/askRag.ts --answer-only",
-    "ask:prompt": "node src/askRag.ts --show-prompt",
-    "ask:answer": "node src/askRag.ts --answer-only"
+    "ask:prompt": "node src/askRag.ts --show-prompt"
   },
   "dependencies": {
     "@huggingface/tokenizers": "^0.2.0",

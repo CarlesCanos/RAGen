@@ -142,11 +142,15 @@ test('settings routes are local-only and regenerate when an index setting change
   assert.equal(regenerated, 1);
 });
 
-test('settings reject a non-loopback Chroma host', async () => {
+test('settings reject non-loopback local-service endpoints', async () => {
   const settings = new SettingsService();
   await assert.rejects(
     settings.apply({ CHROMA_HOST: '192.168.1.10' }, { persist: false }),
     /loopback/
+  );
+  await assert.rejects(
+    settings.apply({ OLLAMA_URL: 'https://example.com' }, { persist: false }),
+    /local/
   );
 });
 
@@ -177,8 +181,8 @@ test('project routes isolate model, settings, index and maintenance context', as
     async regenerate(received) { regeneratedProject = received; return { chunks: 3 }; },
   };
   const models: ModelService = {
-    current: () => 'legacy',
-    async list(selected) { return { current: selected ?? 'legacy', hardware: { gpu: null, vramBytes: null, ramBytes: 1, detection: 'test' }, models: [] }; },
+    current: () => 'test-model',
+    async list(selected) { return { current: selected ?? 'test-model', hardware: { gpu: null, vramBytes: null, ramBytes: 1, detection: 'test' }, models: [] }; },
     async select(name) { return name; },
     async install(name) { return { model: name, state: 'complete', percent: 100, status: 'ok' }; },
     installStatus() { return undefined; },

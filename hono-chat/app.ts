@@ -192,7 +192,7 @@ export function createApp(runAsk: Ask = askRag, maintenance: Maintenance = local
       const project = await projectFor(body.projectId);
       const result = await enqueue(async () => {
         const input = { ...(body.settings as Record<string, unknown>) };
-        for (const key of ['DOCS_DIR', 'RAG_CHAT_MODEL', 'RAG_INDEX_DIR', 'CHUNKS_PATH', 'EMBEDDINGS_PATH', 'KNOWLEDGE_CACHE_PATH', 'QUERY_CACHE_PATH', 'CHROMA_COLLECTION']) delete input[key];
+        for (const key of ['DOCS_DIR', 'RAG_CHAT_MODEL', 'RAG_INDEX_DIR', 'CHUNKS_PATH', 'CHROMA_COLLECTION']) delete input[key];
         const applied = await settings.apply(input, project ? { values: project.settings, persist: false } : undefined);
         if (project) await projects.setSettings(project.id, applied.values ?? Object.fromEntries(Object.entries(input).filter((entry): entry is [string, string] => typeof entry[1] === 'string')));
         const refreshed = project ? await projects.get(project.id) : undefined;

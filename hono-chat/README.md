@@ -7,8 +7,8 @@ root with `START-RAG.cmd`, or run only the interface with:
 npm.cmd run chat
 ```
 
-The server listens on `http://127.0.0.1:8787`. It has no authentication and is intended
-for local use only.
+The server listens on `http://127.0.0.1:8787` by default. It has no authentication and is
+intended for local use only.
 
 ## Projects and conversations
 

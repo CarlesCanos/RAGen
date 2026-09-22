@@ -26,7 +26,8 @@ the installed tools, models, and indexes.
 3. Ask questions in the chat.
 
 Markdown, MDX, text, HTML, and PDF files are supported. You can switch projects without
-losing their conversations. The latest 20 messages are stored for each project.
+losing their conversations. Individual documents are limited to 64 MiB. The latest 20
+messages are stored for each project.
 
 Regenerating a project clears its chat after the new index is ready. Removing a project
 deletes its local settings, index, and chat, but never deletes the source documents.
@@ -36,8 +37,9 @@ Press Enter in the launcher window to stop the processes it started.
 ## Local data and security
 
 Generated data is stored unencrypted under `rag/.runtime/` and is excluded from Git.
-The app and Chroma only accept loopback connections. This project has no authentication
-and must not be exposed to a network without additional security.
+Chroma and Ollama are restricted to loopback connections. The app listens on loopback by
+default. It has no authentication and must not be exposed to a network without additional
+security.
 
 The launcher uses Chroma's Rust server through `chroma run`. The private Python
 environment isolates dependencies, but it is not an operating system security sandbox.

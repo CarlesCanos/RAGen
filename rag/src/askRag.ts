@@ -26,7 +26,7 @@ async function main() {
       else if (arg === '--chat-model') options.config!.model = value;
       else if (arg === '--ollama-url') options.config!.ollamaUrl = value.replace(/\/+$/, '');
       else { const context = Number(value); if (!Number.isInteger(context) || context < 2048) throw new Error('Invalid context'); options.config!.context = context; }
-    } else if (arg.startsWith('--')) throw new Error(`Unknown option ${arg}; use npm run ask:legacy for legacy CLI flags`);
+    } else if (arg.startsWith('--')) throw new Error(`Unknown option ${arg}`);
     else question.push(arg);
   }
   const result = await askRag(question.join(' '), options);

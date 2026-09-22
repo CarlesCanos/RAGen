@@ -335,6 +335,11 @@ try {
   Ensure-NodeDependencies -Npm $nodeRuntime.Npm
 
   $ollamaUrl = (Get-ProjectSetting 'OLLAMA_URL' 'http://127.0.0.1:11434').TrimEnd('/')
+  try { $ollamaUri = [System.Uri]$ollamaUrl }
+  catch { throw 'OLLAMA_URL debe ser una URL HTTP local válida.' }
+  if ($ollamaUri.Scheme -notin @('http', 'https') -or $ollamaUri.Host.ToLowerInvariant() -notin @('localhost', '127.0.0.1', '::1')) {
+    throw 'OLLAMA_URL debe apuntar a localhost o a una dirección de loopback.'
+  }
   Write-Step 3 'Comprobando Ollama y los modelos locales...'
   $ollama = Ensure-Ollama -OllamaUrl $ollamaUrl
   $chatModel = Get-ProjectSetting 'RAG_CHAT_MODEL' 'qwen3.5:4b-q4_K_M'

@@ -67,7 +67,7 @@ export async function askRag(rawQuestion: string, options: AskOptions = {}): Pro
   if (embedding.digest !== snapshot.embedding.digest) throw new Error('Embedding model changed: rebuild with npm run prepare-rag');
   const profile = await tokenizerProfile(cfg, model);
   if (cfg.tokenizerDir === 'auto') cfg.tokenizerDir = profile.directory;
-  const tokenizerRevision = await readJson<{ repository: string; revision: string }>(path.join(cfg.tokenizerDir, 'provenance.json')).catch(() => { throw new Error('Tokenizer missing: npm run setup:rag (legacy: -- --tokenizer-only --deepseek or --qwen3)'); });
+  const tokenizerRevision = await readJson<{ repository: string; revision: string }>(path.join(cfg.tokenizerDir, 'provenance.json')).catch(() => { throw new Error('Tokenizer missing: run npm run setup:rag'); });
   const expectedTokenizer = profile.repository;
   if (tokenizerRevision.repository !== expectedTokenizer) throw new Error(`Tokenizer/model family mismatch: expected ${expectedTokenizer}`);
   const language = options.language || cfg.language;

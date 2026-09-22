@@ -1,4 +1,5 @@
 import type { Config } from './config.ts';
+import { assertLoopbackHttpUrl } from '../shared/network.ts';
 
 export interface ModelInfo { name: string; digest: string; size: number; details: { family: string; quantization_level: string } }
 const profiles = new Map<string, { repository: string; directory: string }>();
@@ -6,13 +7,8 @@ export async function tokenizerProfile(cfg: Config, model: ModelInfo): Promise<{
   const key = `${cfg.ollamaUrl}:${model.digest}`;
   const cached = profiles.get(key);
   if (cached) return cached;
-  const show = await api<{ template?: string; model_info?: Record<string, unknown> }>(cfg, 'show', { model: model.name });
   let profile;
-  if (model.details.family === 'qwen3' && show.template?.includes('<｜User｜>')) {
-    profile = { repository: 'deepseek-ai/DeepSeek-R1-0528-Qwen3-8B', directory: 'output/tokenizer-deepseek-r1' };
-  } else if (model.details.family === 'qwen3') {
-    profile = { repository: 'Qwen/Qwen3-8B', directory: 'output/tokenizer-qwen3' };
-  } else if (['qwen3_5', 'qwen35'].includes(model.details.family)) {
+  if (['qwen3_5', 'qwen35'].includes(model.details.family)) {
     profile = { repository: 'Qwen/Qwen3.5-4B', directory: 'output/tokenizer-qwen3.5' };
   } else throw new Error('Install and register a compatible tokenizer/template before using this model');
   if (profiles.size >= 8) profiles.delete(profiles.keys().next().value!);
@@ -21,6 +17,7 @@ export async function tokenizerProfile(cfg: Config, model: ModelInfo): Promise<{
 }
 export interface StageMetric { stage: string; ms: number; inputTokens: number; outputTokens: number; loadMs: number; promptMs: number; generationMs: number; doneReason?: string }
 export async function api<T>(cfg: Pick<Config, 'ollamaUrl' | 'timeout'>, endpoint: string, body?: unknown): Promise<T> {
+  assertLoopbackHttpUrl(cfg.ollamaUrl, 'OLLAMA_URL');
   const response = await fetch(`${cfg.ollamaUrl}/api/${endpoint}`, {
     method: body === undefined ? 'GET' : 'POST',
     headers: { 'Content-Type': 'application/json' },

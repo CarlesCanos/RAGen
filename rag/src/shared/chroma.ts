@@ -1,9 +1,8 @@
 import { ChromaClient } from "chromadb";
 import type { ChromaConnectionOptions } from "../types/chroma.types.ts";
+import { isLoopbackHost } from './network.ts';
 
-export function isLoopbackHost(host: string): boolean {
-  return ["localhost", "127.0.0.1", "::1", "[::1]"].includes(host.trim().toLowerCase());
-}
+export { isLoopbackHost } from './network.ts';
 
 export function createChromaClient(options: ChromaConnectionOptions): ChromaClient {
   if (!isLoopbackHost(options.host)) {
