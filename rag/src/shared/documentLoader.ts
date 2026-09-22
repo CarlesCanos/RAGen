@@ -3,6 +3,7 @@ import path from "node:path";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { getDocument } from "pdfjs-dist/legacy/build/pdf.mjs";
+import { parseFragment } from "parse5";
 import { getProjectEnv } from "../env.ts";
 import type { LoadedDocument } from "../models/document.models.ts";
 
@@ -13,6 +14,22 @@ type PdfTextItem = {
   str?: string;
   hasEOL?: boolean;
 };
+
+type HtmlNode = {
+  nodeName: string;
+  tagName?: string;
+  value?: string;
+  childNodes?: HtmlNode[];
+};
+
+const HTML_BLOCK_ELEMENTS = new Set([
+  "address", "article", "aside", "blockquote", "div", "dl", "fieldset",
+  "figcaption", "figure", "footer", "form", "h1", "h2", "h3", "h4",
+  "h5", "h6", "header", "hr", "li", "main", "nav", "ol", "p", "pre",
+  "section", "table", "tbody", "td", "tfoot", "th", "thead", "tr", "ul"
+]);
+
+const HTML_IGNORED_ELEMENTS = new Set(["noscript", "script", "style", "template"]);
 
 export async function loadDocument(filePath: string): Promise<LoadedDocument> {
   const fileStats = await stat(filePath);
@@ -88,30 +105,45 @@ function normalizePlainText(text: string): string {
 }
 
 function preprocessHtml(html: string): string {
-  const withoutScripts = html
-    .replace(/<script[\s\S]*?<\/script>/gi, " ")
-    .replace(/<style[\s\S]*?<\/style>/gi, " ");
-  const withBlockBreaks = withoutScripts
-    .replace(/<\/(p|div|section|article|main|aside|header|footer|nav|li|ul|ol|table|tr|td|th|h[1-6]|pre|code)>/gi, "\n")
-    .replace(/<br\s*\/?>/gi, "\n");
-  const withoutTags = withBlockBreaks.replace(/<[^>]+>/g, " ");
-  const decoded = decodeHtmlEntities(withoutTags);
+  const text: string[] = [];
+  collectHtmlText(parseFragment(html) as HtmlNode, text);
 
-  return decoded
+  return text.join("")
+    .replace(/\r\n?/g, "\n")
+    .replace(/\u00a0/g, " ")
     .replace(/[ \t]+\n/g, "\n")
+    .replace(/\n[ \t]+/g, "\n")
     .replace(/\n{3,}/g, "\n\n")
     .replace(/[ \t]{2,}/g, " ")
     .trim();
 }
 
-function decodeHtmlEntities(value: string): string {
-  return value
-    .replace(/&nbsp;/gi, " ")
-    .replace(/&amp;/gi, "&")
-    .replace(/&lt;/gi, "<")
-    .replace(/&gt;/gi, ">")
-    .replace(/&quot;/gi, "\"")
-    .replace(/&#39;/gi, "'");
+function collectHtmlText(node: HtmlNode, output: string[]): void {
+  const tagName = node.tagName?.toLowerCase();
+  if (tagName && HTML_IGNORED_ELEMENTS.has(tagName)) {
+    return;
+  }
+
+  if (node.nodeName === "#text" && node.value) {
+    output.push(node.value);
+    return;
+  }
+
+  if (tagName === "br") {
+    output.push("\n");
+    return;
+  }
+
+  const isBlock = tagName ? HTML_BLOCK_ELEMENTS.has(tagName) : false;
+  if (isBlock) {
+    output.push("\n");
+  }
+  for (const child of node.childNodes ?? []) {
+    collectHtmlText(child, output);
+  }
+  if (isBlock) {
+    output.push("\n");
+  }
 }
 
 async function extractPdfText(filePath: string): Promise<string> {

@@ -13,6 +13,7 @@ import { fixtures } from '../src/evaluation/fixtures.ts';
 import { resolveModel, type ModelInfo } from '../src/optimized/ollama.ts';
 import { createChromaClient, isLoopbackHost } from '../src/shared/chroma.ts';
 import { isLoopbackHttpUrl } from '../src/shared/network.ts';
+import { loadDocument } from '../src/shared/documentLoader.ts';
 
 test('Chroma clients are restricted to loopback', () => {
   assert.equal(isLoopbackHost('localhost'), true);
@@ -32,6 +33,19 @@ test('Ollama URLs are restricted to HTTP loopback endpoints', () => {
   assert.equal(isLoopbackHttpUrl('https://example.com'), false);
   assert.equal(isLoopbackHttpUrl('http://127.0.0.1:11434/proxy'), false);
   assert.equal(isLoopbackHttpUrl('file:///tmp/ollama'), false);
+});
+
+test('HTML loading uses a parser, ignores executable content and decodes entities once', async () => {
+  const dir = await mkdtemp(path.join(tmpdir(), 'rag-html-'));
+  try {
+    const input = path.join(dir, 'document.html');
+    await writeFile(input, '<p>Visible &amp;lt; &lt;</p><script>hidden</script foo="bar"><style>also hidden</style><p>After<br>line</p>');
+    const document = await loadDocument(input);
+    assert.equal(document.format, 'html');
+    assert.equal(document.text, 'Visible &lt; <\n\nAfter\nline');
+  } finally {
+    await rm(dir, { recursive: true });
+  }
 });
 
 test('BM25 uses postings, handles Unicode, unknown terms and prototype names', () => {
