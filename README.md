@@ -111,9 +111,10 @@ npm.cmd test
 npm.cmd run launch
 ```
 
-See [RAG engine](rag/README.md), [chat interface](hono-chat/README.md), and
-[CONTRIBUTING.md](CONTRIBUTING.md) for implementation and contribution details. Report
-security issues through [SECURITY.md](SECURITY.md).
+See [RAG engine](rag/README.md), [chat interface](hono-chat/README.md),
+[CONTRIBUTING.md](CONTRIBUTING.md), and [CHANGELOG.md](CHANGELOG.md) for implementation,
+contribution, and release details. Report security issues through
+[SECURITY.md](SECURITY.md).
 
 ## License
 
