@@ -10,6 +10,9 @@ on:
   workflow_dispatch:
 
 permissions:
+  # CodeQL reads workflow-run metadata while processing and uploading results.
+  # This permission is required when the repository is private.
+  actions: read
   contents: read
   security-events: write
 
