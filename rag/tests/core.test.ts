@@ -116,5 +116,5 @@ test('insufficient evidence always has the exact requested response without irre
     assert.deepEqual(parseAnswer(JSON.stringify({ answer, sufficient: false, citations: ['invented'] }), []),
       { answer: NO_INFORMATION, sufficient: false });
   }
-  assert.equal(NO_INFORMATION, 'No hay informacion referente a este tema en los documentos');
+  assert.equal(NO_INFORMATION, 'No information about this topic was found in the documents.');
 });

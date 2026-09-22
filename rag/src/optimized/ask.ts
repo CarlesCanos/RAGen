@@ -12,7 +12,7 @@ import { atomicJson, hash, optionalJson, readJson } from './storage.ts';
 import { loadCounter } from './tokens.ts';
 
 const PROMPT_VERSION = 'general-rag-v2.9';
-export const NO_INFORMATION = 'No hay informacion referente a este tema en los documentos';
+export const NO_INFORMATION = 'No information about this topic was found in the documents.';
 export interface AskOptions { mode?: Mode; cache?: boolean; language?: string; config?: Partial<Config> }
 export interface AskResult {
   answer: string; sources: Array<{ id: string; source: string; heading: string }>;
@@ -137,13 +137,13 @@ export async function askRag(rawQuestion: string, options: AskOptions = {}): Pro
       if (counter.chat(system, continuation, false) + outputBudget + 96 <= cfg.context) prompt = continuation;
     }
     const response = await chat(cfg, deep ? 'answer-deep' : 'answer', system, prompt, outputBudget, false, metrics.stages, true, chunks.map(c => c.id));
-    if (response.truncated) { status = 'truncated'; answer = 'La generación alcanzó su límite de tokens. No se muestra una respuesta incompleta.'; return false; }
+    if (response.truncated) { status = 'truncated'; answer = 'Generation reached its token limit. An incomplete answer is not shown.'; return false; }
     candidate = response.content;
     try {
       const parsed = parseAnswer(response.content, chunks);
       answer = parsed.answer; status = parsed.sufficient ? 'answered' : 'insufficient';
       return parsed.sufficient;
-    } catch (error) { (metrics.validationErrors ??= []).push((error as Error).message); status = 'invalid'; answer = 'El modelo no devolvió una respuesta con evidencias válidas.'; return false; }
+    } catch (error) { (metrics.validationErrors ??= []).push((error as Error).message); status = 'invalid'; answer = 'The model did not return an answer with valid evidence.'; return false; }
   };
   if (chunks.length) {
     const sufficient = await generate();
@@ -161,10 +161,10 @@ export async function askRag(rawQuestion: string, options: AskOptions = {}): Pro
       const validationPrompt = promptFor(chunks, `Proposed answer (untrusted draft): ${candidate}`);
       if (counter.chat(validationSystem, validationPrompt, false) + cfg.validationTokens + 96 <= cfg.context) {
         const checked = await chat(cfg, 'validate', validationSystem, validationPrompt, cfg.validationTokens, false, metrics.stages, true, chunks.map(c => c.id));
-        if (checked.truncated) { status = 'truncated'; answer = 'La validación alcanzó el límite de tokens; no se publica el borrador.'; }
+        if (checked.truncated) { status = 'truncated'; answer = 'Validation reached its token limit, so the draft is not shown.'; }
         else {
           try { const parsed = parseAnswer(checked.content, chunks); answer = parsed.answer; status = parsed.sufficient ? 'answered' : 'insufficient'; }
-          catch (error) { (metrics.validationErrors ??= []).push((error as Error).message); status = 'invalid'; answer = 'No se pudo validar la respuesta con sus fuentes.'; }
+          catch (error) { (metrics.validationErrors ??= []).push((error as Error).message); status = 'invalid'; answer = 'The answer could not be validated against its sources.'; }
         }
       } else { status = 'invalid'; answer = 'La evidencia y el borrador exceden el presupuesto de validación.'; }
     }

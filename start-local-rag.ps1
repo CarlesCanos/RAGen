@@ -47,15 +47,15 @@ function Install-WingetPackage {
     [Parameter(Mandatory)][string]$DisplayName,
     [switch]$Upgrade
   )
-  if ($SkipInstall) { throw "$DisplayName falta y la instalacion automatica esta desactivada (-SkipInstall)." }
+  if ($SkipInstall) { throw "$DisplayName is missing and automatic installation is disabled (-SkipInstall)." }
   $winget = Get-Winget
   if (-not $winget) {
-    throw "$DisplayName no esta instalado y no se encontro winget. Instala 'App Installer' desde Microsoft Store y vuelve a pulsar START-RAG.cmd."
+    throw "$DisplayName is not installed and winget was not found. Install 'App Installer' from the Microsoft Store, then run START-RAG.cmd again."
   }
   $verb = if ($Upgrade) { 'upgrade' } else { 'install' }
-  Write-Host "      Instalando $DisplayName mediante winget..." -ForegroundColor Yellow
+  Write-Host "      Installing $DisplayName with winget..." -ForegroundColor Yellow
   & $winget $verb --id $Id --exact --silent --accept-package-agreements --accept-source-agreements --disable-interactivity | Out-Host
-  if ($LASTEXITCODE -ne 0) { throw "winget no pudo instalar $DisplayName (codigo $LASTEXITCODE)." }
+  if ($LASTEXITCODE -ne 0) { throw "winget could not install $DisplayName (exit code $LASTEXITCODE)." }
   Update-ProcessPath
 }
 
@@ -93,10 +93,10 @@ function Wait-Endpoint {
   $limit = (Get-Date).AddSeconds($Seconds)
   while ((Get-Date) -lt $limit) {
     if (Test-Endpoint $Uri) { return }
-    if ($Process -and $Process.HasExited) { throw "$Service termino durante el arranque (codigo $($Process.ExitCode))." }
+    if ($Process -and $Process.HasExited) { throw "$Service stopped during startup (exit code $($Process.ExitCode))." }
     Start-Sleep -Milliseconds 500
   }
-  throw "$Service no respondio en $Uri despues de $Seconds segundos."
+  throw "$Service did not respond at $Uri after $Seconds seconds."
 }
 
 function Start-TrackedProcess {
@@ -115,7 +115,7 @@ function Stop-StartedProcesses {
     $process = $startedProcesses[$index]
     try {
       if (-not $process.HasExited) { Stop-Process -Id $process.Id -ErrorAction Stop }
-    } catch { Write-Host "Aviso al detener el proceso $($process.Id): $($_.Exception.Message)" -ForegroundColor Yellow }
+    } catch { Write-Host "Warning while stopping process $($process.Id): $($_.Exception.Message)" -ForegroundColor Yellow }
   }
 }
 
@@ -138,13 +138,13 @@ function Ensure-Node {
     Install-WingetPackage -Id 'OpenJS.NodeJS.LTS' -DisplayName 'Node.js LTS' -Upgrade:([bool]$node)
     $node = Find-Application 'node.exe' $known
   }
-  if (-not $node) { throw 'Node.js se instalo, pero node.exe no se encuentra. Reinicia Windows y vuelve a intentarlo.' }
+  if (-not $node) { throw 'Node.js was installed, but node.exe was not found. Restart Windows and try again.' }
   $rawVersion = (& $node --version 2>$null | Select-Object -First 1)
   if ($rawVersion -notmatch '^v(\d+)\.(\d+)\.' -or [int]$Matches[1] -lt 22) {
-    throw "Se necesita Node.js 22.18 o posterior; se encontro $rawVersion."
+    throw "Node.js 22.18 or later is required; found $rawVersion."
   }
   $npm = Find-Application 'npm.cmd' @((Join-Path (Split-Path -Parent $node) 'npm.cmd'))
-  if (-not $npm) { throw 'Node.js esta presente, pero no se encuentra npm.cmd.' }
+  if (-not $npm) { throw 'Node.js is installed, but npm.cmd was not found.' }
   return @{ Node = $node; Npm = $npm; Version = $rawVersion }
 }
 
@@ -157,18 +157,18 @@ function Ensure-NodeDependencies {
   $honoModule = Join-Path $repoRoot 'node_modules\hono\package.json'
   $chromaModule = Join-Path $repoRoot 'node_modules\chromadb\package.json'
   if ($installedHash -eq $lockHash -and (Test-Path -LiteralPath $honoModule) -and (Test-Path -LiteralPath $chromaModule)) {
-    Write-Host '      Dependencias npm ya preparadas.' -ForegroundColor DarkGreen
+    Write-Host '      npm dependencies are already prepared.' -ForegroundColor DarkGreen
     return
   }
-  if ($SkipInstall) { throw 'Faltan dependencias npm y la instalacion automatica esta desactivada (-SkipInstall).' }
-  Write-Host '      Instalando dependencias npm verificadas por package-lock.json...' -ForegroundColor Yellow
+  if ($SkipInstall) { throw 'npm dependencies are missing and automatic installation is disabled (-SkipInstall).' }
+  Write-Host '      Installing npm dependencies verified by package-lock.json...' -ForegroundColor Yellow
   Push-Location $repoRoot
   try {
     & $Npm ci --no-audit --no-fund
-    if ($LASTEXITCODE -ne 0) { throw "npm ci termino con codigo $LASTEXITCODE." }
+    if ($LASTEXITCODE -ne 0) { throw "npm ci failed with exit code $LASTEXITCODE." }
     Set-Content -LiteralPath $markerFile -Value $lockHash -Encoding ASCII
   } finally { Pop-Location }
-  Write-Host '      Dependencias npm instaladas.' -ForegroundColor Green
+  Write-Host '      npm dependencies installed.' -ForegroundColor Green
 }
 
 function Ensure-ChromaRuntime {
@@ -182,22 +182,22 @@ function Ensure-ChromaRuntime {
     $installedHash = (Get-FileHash -Algorithm SHA256 -LiteralPath $chroma).Hash.ToLowerInvariant()
     if ($installedHash -eq $expectedHash) { return $chroma }
   }
-  if ($SkipInstall) { throw 'El runtime local de Chroma no esta preparado y la instalacion automatica esta desactivada (-SkipInstall).' }
+  if ($SkipInstall) { throw 'The local Chroma runtime is not ready and automatic installation is disabled (-SkipInstall).' }
 
-  Write-Host "      Descargando Chroma $chromaVersion desde GitHub..." -ForegroundColor Yellow
+  Write-Host "      Downloading Chroma $chromaVersion from GitHub..." -ForegroundColor Yellow
   New-Item -ItemType Directory -Force -Path $chromaRoot | Out-Null
   $temporaryFile = Join-Path $chromaRoot ("chroma-windows.exe.download-" + [guid]::NewGuid().ToString('N'))
   try {
     Invoke-WebRequest -UseBasicParsing -Uri $downloadUrl -OutFile $temporaryFile
     $downloadedHash = (Get-FileHash -Algorithm SHA256 -LiteralPath $temporaryFile).Hash.ToLowerInvariant()
     if ($downloadedHash -ne $expectedHash) {
-      throw "La descarga de Chroma no coincide con el SHA-256 esperado. Esperado: $expectedHash; recibido: $downloadedHash."
+      throw "The Chroma download does not match the expected SHA-256. Expected: $expectedHash; received: $downloadedHash."
     }
     Move-Item -LiteralPath $temporaryFile -Destination $chroma -Force
   } finally {
     if (Test-Path -LiteralPath $temporaryFile) { Remove-Item -LiteralPath $temporaryFile -Force }
   }
-  Write-Host '      Chroma descargado y verificado.' -ForegroundColor Green
+  Write-Host '      Chroma downloaded and verified.' -ForegroundColor Green
   return $chroma
 }
 
@@ -213,13 +213,13 @@ function Ensure-Ollama {
     $ollama = Find-Application 'ollama.exe' $known
   }
   if (-not (Test-Endpoint "$OllamaUrl/api/tags")) {
-    if (-not $ollama) { throw 'Ollama se instalo, pero ollama.exe no se encuentra. Reinicia Windows y vuelve a intentarlo.' }
+    if (-not $ollama) { throw 'Ollama was installed, but ollama.exe was not found. Restart Windows and try again.' }
     $process = Start-TrackedProcess -FilePath $ollama -ArgumentList @('serve') -WorkingDirectory $ragRoot
     Wait-Endpoint -Uri "$OllamaUrl/api/tags" -Service 'Ollama' -Seconds 45 -Process $process
-    Write-Host '      Ollama iniciado.' -ForegroundColor Green
-  } else { Write-Host '      Ollama ya estaba disponible.' -ForegroundColor DarkGreen }
+    Write-Host '      Ollama started.' -ForegroundColor Green
+  } else { Write-Host '      Ollama is already available.' -ForegroundColor DarkGreen }
   if (-not $ollama) { $ollama = Find-Application 'ollama.exe' $known }
-  if (-not $ollama) { throw 'Ollama responde, pero no se encuentra ollama.exe para comprobar los modelos.' }
+  if (-not $ollama) { throw 'Ollama is responding, but ollama.exe was not found to check the models.' }
   return $ollama
 }
 
@@ -236,18 +236,18 @@ function Ensure-OllamaModel {
     $installed = $true
   } catch { $installed = $false }
   if ($installed) {
-    Write-Host "      Modelo disponible: $Model" -ForegroundColor DarkGreen
+    Write-Host "      Model available: $Model" -ForegroundColor DarkGreen
     return
   }
-  if ($SkipInstall) { throw "Falta el modelo $Model y la instalacion automatica esta desactivada (-SkipInstall)." }
-  Write-Host "      Descargando el modelo $Model (puede tardar varios minutos)..." -ForegroundColor Yellow
+  if ($SkipInstall) { throw "Model $Model is missing and automatic installation is disabled (-SkipInstall)." }
+  Write-Host "      Downloading model $Model (this may take several minutes)..." -ForegroundColor Yellow
   $previousPreference = $ErrorActionPreference
   try {
     $ErrorActionPreference = 'Continue'
     & $Ollama pull $Model
     $pullExitCode = $LASTEXITCODE
   } finally { $ErrorActionPreference = $previousPreference }
-  if ($pullExitCode -ne 0) { throw "No se pudo descargar el modelo $Model (codigo $pullExitCode)." }
+  if ($pullExitCode -ne 0) { throw "Could not download model $Model (exit code $pullExitCode)." }
 }
 
 function Ensure-QwenTokenizer {
@@ -256,19 +256,19 @@ function Ensure-QwenTokenizer {
   $required = @('tokenizer.json', 'tokenizer_config.json', 'chat_template.jinja', 'provenance.json')
   $missing = $required | Where-Object { -not (Test-Path -LiteralPath (Join-Path $tokenizerRoot $_) -PathType Leaf) }
   if (-not $missing) {
-    Write-Host '      Tokenizer de Qwen disponible.' -ForegroundColor DarkGreen
+    Write-Host '      Qwen tokenizer available.' -ForegroundColor DarkGreen
     return
   }
-  if ($SkipInstall) { throw 'Falta el tokenizer de Qwen y la instalacion automatica esta desactivada (-SkipInstall).' }
-  Write-Host '      Descargando el tokenizer compatible de Qwen...' -ForegroundColor Yellow
+  if ($SkipInstall) { throw 'The Qwen tokenizer is missing and automatic installation is disabled (-SkipInstall).' }
+  Write-Host '      Downloading the compatible Qwen tokenizer...' -ForegroundColor Yellow
   Push-Location $ragRoot
   try {
     & $Node 'src/setupRag.ts' '--tokenizer-only'
-    if ($LASTEXITCODE -ne 0) { throw "No se pudo instalar el tokenizer (codigo $LASTEXITCODE)." }
+    if ($LASTEXITCODE -ne 0) { throw "Could not install the tokenizer (exit code $LASTEXITCODE)." }
   } finally { Pop-Location }
   foreach ($file in $required) {
     if (-not (Test-Path -LiteralPath (Join-Path $tokenizerRoot $file) -PathType Leaf)) {
-      throw "La descarga del tokenizer no genero $file."
+      throw "The tokenizer download did not create $file."
     }
   }
 }
@@ -287,40 +287,40 @@ function Ensure-DocumentCorpus {
     Select-Object -First 1
   if ($documents) { return }
   $welcome = @'
-# Bienvenido a Local RAG
+# Welcome to RAGen
 
-Este documento inicial confirma que la instalacion funciona correctamente.
+This starter document confirms that the installation is working correctly.
 
-Para usar tus propios documentos, abre la carpeta desde el boton **Documentos** del chat,
-anade archivos compatibles y pulsa **Regenerar RAG**. Puedes eliminar este archivo despues.
+To use your own documents, open the folder from the chat's **Documents** button, add
+supported files, and select **Regenerate RAG**. You can remove this file afterward.
 '@
-  Set-Content -LiteralPath (Join-Path $docsRoot 'EMPIEZA-AQUI.md') -Value $welcome -Encoding UTF8
-  Write-Host "      Se creo $docsRoot\EMPIEZA-AQUI.md porque el corpus estaba vacio." -ForegroundColor Yellow
+  Set-Content -LiteralPath (Join-Path $docsRoot 'GET-STARTED.md') -Value $welcome -Encoding UTF8
+  Write-Host "      Created $docsRoot\GET-STARTED.md because the document folder was empty." -ForegroundColor Yellow
 }
 
 try {
-  if (-not (Test-Path -LiteralPath (Join-Path $ragRoot 'package.json'))) { throw 'No se encuentra el proyecto rag/.' }
-  if (-not (Test-Path -LiteralPath (Join-Path $repoRoot 'hono-chat\server.ts'))) { throw 'No se encuentra el proyecto hono-chat/.' }
+  if (-not (Test-Path -LiteralPath (Join-Path $ragRoot 'package.json'))) { throw 'The rag/ project was not found.' }
+  if (-not (Test-Path -LiteralPath (Join-Path $repoRoot 'hono-chat\server.ts'))) { throw 'The hono-chat/ project was not found.' }
 
   Write-Host ''
-  Write-Host 'Local RAG - instalacion y arranque automaticos' -ForegroundColor White
-  Write-Host 'La primera ejecucion puede tardar por las descargas.' -ForegroundColor DarkGray
+  Write-Host 'RAGen - automatic setup and startup' -ForegroundColor White
+  Write-Host 'The first run can take a while because of downloads.' -ForegroundColor DarkGray
   Write-Host ''
 
-  Write-Step 1 'Comprobando Node.js y npm...'
+  Write-Step 1 'Checking Node.js and npm...'
   $nodeRuntime = Ensure-Node
   Write-Host "      Node.js $($nodeRuntime.Version)" -ForegroundColor DarkGreen
 
-  Write-Step 2 'Comprobando dependencias del proyecto...'
+  Write-Step 2 'Checking project dependencies...'
   Ensure-NodeDependencies -Npm $nodeRuntime.Npm
 
   $ollamaUrl = (Get-ProjectSetting 'OLLAMA_URL' 'http://127.0.0.1:11434').TrimEnd('/')
   try { $ollamaUri = [System.Uri]$ollamaUrl }
-  catch { throw 'OLLAMA_URL debe ser una URL HTTP local válida.' }
+  catch { throw 'OLLAMA_URL must be a valid local HTTP URL.' }
   if ($ollamaUri.Scheme -notin @('http', 'https') -or $ollamaUri.Host.ToLowerInvariant() -notin @('localhost', '127.0.0.1', '::1')) {
-    throw 'OLLAMA_URL debe apuntar a localhost o a una dirección de loopback.'
+    throw 'OLLAMA_URL must point to localhost or a loopback address.'
   }
-  Write-Step 3 'Comprobando Ollama y los modelos locales...'
+  Write-Step 3 'Checking Ollama and local models...'
   $ollama = Ensure-Ollama -OllamaUrl $ollamaUrl
   $chatModel = Get-ProjectSetting 'RAG_CHAT_MODEL' 'qwen3.5:4b-q4_K_M'
   $embedModel = Get-ProjectSetting 'OLLAMA_EMBED_MODEL' 'embeddinggemma'
@@ -330,11 +330,11 @@ try {
   }
   Ensure-QwenTokenizer -Node $nodeRuntime.Node
 
-  Write-Step 4 'Comprobando el servidor Chroma...'
+  Write-Step 4 'Checking the Chroma server...'
   $chromaHost = Get-ProjectSetting 'CHROMA_HOST' 'localhost'
   $chromaPort = [int](Get-ProjectSetting 'CHROMA_PORT' '8000')
   if ($chromaHost.ToLowerInvariant() -notin @('localhost', '127.0.0.1')) {
-    throw 'CHROMA_HOST debe ser localhost o 127.0.0.1. Esta aplicacion no permite exponer Chroma a la red.'
+    throw 'CHROMA_HOST must be localhost or 127.0.0.1. This application does not allow Chroma to be exposed to the network.'
   }
   $chromaUrl = "http://${chromaHost}:$chromaPort"
   if (-not (Test-Endpoint "$chromaUrl/api/v2/heartbeat")) {
@@ -342,12 +342,12 @@ try {
     $chromaData = Join-Path $ragRoot '.chroma'
     $chromaProcess = Start-TrackedProcess -FilePath $chroma -ArgumentList @('run', '--path', "`"$chromaData`"", '--host', $chromaHost, '--port', "$chromaPort") -WorkingDirectory $ragRoot
     Wait-Endpoint -Uri "$chromaUrl/api/v2/heartbeat" -Service 'Chroma' -Seconds 60 -Process $chromaProcess
-    Write-Host '      Chroma Rust iniciado en loopback.' -ForegroundColor Green
-  } else { Write-Host '      Chroma ya estaba disponible.' -ForegroundColor DarkGreen }
+    Write-Host '      Chroma Rust started on loopback.' -ForegroundColor Green
+  } else { Write-Host '      Chroma is already available.' -ForegroundColor DarkGreen }
 
-  Write-Step 5 'Validando el indice RAG...'
+  Write-Step 5 'Validating the RAG index...'
   Ensure-DocumentCorpus
-  if ($SkipPrepare) { Write-Host '      Preparacion omitida por parametro.' -ForegroundColor Yellow }
+  if ($SkipPrepare) { Write-Host '      Preparation skipped by parameter.' -ForegroundColor Yellow }
   else {
     Push-Location $ragRoot
     try {
@@ -360,14 +360,14 @@ try {
       $indexReady = $indexExitCode -eq 0
       if ($indexReady) {
         $summary = $readyOutput | Select-Object -Last 1
-        Write-Host "      Indice y coleccion verificados: $summary" -ForegroundColor DarkGreen
+        Write-Host "      Index and collection verified: $summary" -ForegroundColor DarkGreen
       } else {
-        Write-Host '      El indice falta o no coincide con Chroma; preparandolo ahora...' -ForegroundColor Yellow
+        Write-Host '      The index is missing or does not match Chroma; preparing it now...' -ForegroundColor Yellow
         & $nodeRuntime.Node 'src/prepareRag.ts'
-        if ($LASTEXITCODE -ne 0) { throw "La preparacion del RAG termino con codigo $LASTEXITCODE." }
+        if ($LASTEXITCODE -ne 0) { throw "RAG preparation failed with exit code $LASTEXITCODE." }
         & $nodeRuntime.Node 'src/checkReady.ts'
-        if ($LASTEXITCODE -ne 0) { throw 'El indice se creo, pero no supero la comprobacion final.' }
-        Write-Host '      Indice preparado y verificado.' -ForegroundColor Green
+        if ($LASTEXITCODE -ne 0) { throw 'The index was created, but it did not pass the final check.' }
+        Write-Host '      Index prepared and verified.' -ForegroundColor Green
       }
     } finally { Pop-Location }
   }
@@ -378,30 +378,30 @@ try {
   $uiUrl = "http://${browserHost}:$uiPort"
   $env:RAG_UI_HOST = $uiHost
   $env:RAG_UI_PORT = "$uiPort"
-  Write-Step 6 'Iniciando Hono Chat...'
+  Write-Step 6 'Starting Hono Chat...'
   if (-not (Test-Endpoint "$uiUrl/api/health")) {
     $honoEntry = Join-Path $repoRoot 'hono-chat\server.ts'
     $honoProcess = Start-TrackedProcess -FilePath $nodeRuntime.Node -ArgumentList @("`"$honoEntry`"") -WorkingDirectory $repoRoot
     Wait-Endpoint -Uri "$uiUrl/api/health" -Service 'Hono Chat' -Seconds 30 -Process $honoProcess
-    Write-Host '      Hono Chat iniciado.' -ForegroundColor Green
-  } else { Write-Host '      Hono Chat ya estaba disponible.' -ForegroundColor DarkGreen }
+    Write-Host '      Hono Chat started.' -ForegroundColor Green
+  } else { Write-Host '      Hono Chat is already available.' -ForegroundColor DarkGreen }
 
-  Write-Step 7 'Local RAG listo.'
+  Write-Step 7 'RAGen is ready.'
   Write-Host "      $uiUrl" -ForegroundColor Green
   if (-not $NoBrowser) { Start-Process $uiUrl }
 
   if (-not $ExitAfterReady) {
     Write-Host ''
-    Read-Host 'Pulsa Enter para detener los servicios iniciados por este lanzador'
+    Read-Host 'Press Enter to stop the services started by this launcher'
   }
 } catch {
   Write-Host ''
   Write-Host "ERROR: $($_.Exception.Message)" -ForegroundColor Red
-  Write-Host 'Corrige el problema indicado y vuelve a pulsar START-RAG.cmd.' -ForegroundColor Yellow
+  Write-Host 'Fix the problem shown above, then run START-RAG.cmd again.' -ForegroundColor Yellow
   $launcherExitCode = 1
 } finally {
   try { Stop-StartedProcesses }
-  catch { Write-Host "Aviso durante la limpieza: $($_.Exception.Message)" -ForegroundColor Yellow }
+  catch { Write-Host "Warning during cleanup: $($_.Exception.Message)" -ForegroundColor Yellow }
 }
 
 exit $launcherExitCode
