@@ -1,0 +1,2 @@
+# Input for requirements-chroma.lock.txt. Regenerate the lock after changing this file.
+chromadb==1.5.9

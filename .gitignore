@@ -1,0 +1,24 @@
+# Dependencies and local environment
+node_modules/
+.env
+.env.*
+!.env.example
+!**/.env.example
+
+# Per-project configuration, conversations, indexes and downloaded runtimes
+/rag/.runtime/
+/rag/.chroma/
+/rag/docs/*
+/rag/output/*
+/rag/a
+
+# Editor, operating-system and diagnostic files
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+*.log
+
+# Legacy generated locations at the repository root
+/docs/
+/output/

@@ -1,0 +1,34 @@
+{
+  "name": "ragen-local",
+  "version": "0.1.0",
+  "description": "A lightweight, no-Docker local RAG for Windows using Ollama and Chroma.",
+  "license": "MIT",
+  "author": "Carles Canos",
+  "private": true,
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/CarlesCanos/RAGen.git"
+  },
+  "bugs": {
+    "url": "https://github.com/CarlesCanos/RAGen/issues"
+  },
+  "homepage": "https://github.com/CarlesCanos/RAGen#readme",
+  "engines": {
+    "node": ">=22.18.0"
+  },
+  "workspaces": [
+    "rag",
+    "hono-chat"
+  ],
+  "scripts": {
+    "launch": "powershell -NoProfile -ExecutionPolicy Bypass -File ./start-local-rag.ps1",
+    "chat": "npm --workspace hono-chat run start",
+    "ask": "npm --workspace rag run ask --",
+    "prepare-rag": "npm --workspace rag run prepare-rag",
+    "setup:rag": "npm --workspace rag run setup:rag --",
+    "doctor": "npm --workspace rag run doctor --",
+    "start:chroma": "npm --workspace rag run start:chroma",
+    "test": "npm run test --workspaces --if-present",
+    "typecheck": "npm run typecheck --workspaces --if-present"
+  }
+}
