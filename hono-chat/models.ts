@@ -41,13 +41,13 @@ const catalog = [
 export function rateForHardware(sizeBytes: number, hardware: HardwareInfo): Pick<ModelView, 'rating' | 'ratingLabel' | 'reason'> {
   if (hardware.vramBytes && hardware.vramBytes > 0) {
     const ratio = sizeBytes / hardware.vramBytes;
-    if (ratio <= 0.65) return { rating: 'green', ratingLabel: 'Muy compatible', reason: 'Cabe en la VRAM con margen para contexto y caché.' };
-    if (ratio <= 0.90) return { rating: 'yellow', ratingLabel: 'Aceptable', reason: 'Debería caber, pero deja poco margen y puede reducir velocidad.' };
-    return { rating: 'red', ratingLabel: 'Poco recomendable', reason: 'Probablemente usará RAM/CPU o no cabrá por completo en la GPU.' };
+    if (ratio <= 0.65) return { rating: 'green', ratingLabel: 'Recommended', reason: 'Fits in VRAM with room for context and cache.' };
+    if (ratio <= 0.90) return { rating: 'yellow', ratingLabel: 'Acceptable', reason: 'Should fit, but leaves little room and may reduce speed.' };
+    return { rating: 'red', ratingLabel: 'Not recommended', reason: 'Will likely use RAM/CPU or not fit fully in the GPU.' };
   }
   const ratio = sizeBytes / hardware.ramBytes;
-  if (ratio <= 0.30) return { rating: 'yellow', ratingLabel: 'Aceptable', reason: 'La VRAM no se pudo detectar; podría ejecutarse en RAM, con menor velocidad.' };
-  return { rating: 'red', ratingLabel: 'Poco recomendable', reason: 'La VRAM no se pudo detectar y el modelo consume una parte importante de la RAM.' };
+  if (ratio <= 0.30) return { rating: 'yellow', ratingLabel: 'Acceptable', reason: 'VRAM could not be detected; it may run in RAM at a lower speed.' };
+  return { rating: 'red', ratingLabel: 'Not recommended', reason: 'VRAM could not be detected, and the model uses a significant amount of RAM.' };
 }
 
 async function detectHardware(): Promise<HardwareInfo> {
@@ -120,7 +120,7 @@ export class LocalModelService implements ModelService {
     const { models } = await api<{ models: ModelInfo[] }>(cfg, 'tags');
     const installed = await compatibleInstalled(models);
     const target = installed.find(model => model.name.toLowerCase() === name.toLowerCase());
-    if (!target) throw new Error('El modelo no está instalado o no es compatible con este RAG.');
+    if (!target) throw new Error('The model is not installed or is not compatible with this RAG.');
     const previous = resolveModel(installed, previousName);
     if (previous && previous.name !== target.name) {
       await api(cfg, 'generate', { model: previous.name, prompt: '', stream: false, keep_alive: 0 }).catch(() => undefined);
@@ -131,11 +131,11 @@ export class LocalModelService implements ModelService {
 
   async install(name: string): Promise<InstallState> {
     const item = catalog.find(entry => entry.name.toLowerCase() === name.toLowerCase());
-    if (!item) throw new Error('Ese modelo no forma parte del catálogo compatible.');
+    if (!item) throw new Error('That model is not in the compatible catalog.');
     const existing = this.installs.get(item.name);
     if (existing?.state === 'downloading') return existing;
-    if ([...this.installs.values()].some(job => job.state === 'downloading')) throw new Error('Ya hay otro modelo descargándose.');
-    const state: InstallState = { model: item.name, state: 'downloading', percent: 0, status: 'Iniciando descarga…' };
+    if ([...this.installs.values()].some(job => job.state === 'downloading')) throw new Error('Another model is already downloading.');
+    const state: InstallState = { model: item.name, state: 'downloading', percent: 0, status: 'Starting download…' };
     this.installs.set(item.name, state);
     void this.pull(item.name, state);
     return state;
@@ -148,7 +148,7 @@ export class LocalModelService implements ModelService {
       const cfg = config();
       const response = await fetch(`${cfg.ollamaUrl}/api/pull`, { method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ model: name, stream: true }), signal: AbortSignal.timeout(60 * 60 * 1000) });
-      if (!response.ok || !response.body) throw new Error(`Ollama respondió HTTP ${response.status}`);
+      if (!response.ok || !response.body) throw new Error(`Ollama returned HTTP ${response.status}`);
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
       let pending = '';
@@ -169,12 +169,12 @@ export class LocalModelService implements ModelService {
       const tokenizer = path.join(ragRoot, 'output', 'tokenizer-qwen3.5', 'provenance.json');
       try { await access(tokenizer); }
       catch {
-        state.status = 'Instalando tokenizer…'; state.percent = 99;
+        state.status = 'Installing tokenizer…'; state.percent = 99;
         await execFileAsync(process.execPath, ['src/setupRag.ts', '--tokenizer-only'], {
           cwd: ragRoot, windowsHide: true, timeout: 10 * 60 * 1000, maxBuffer: 10 * 1024 * 1024,
         });
       }
-      state.state = 'complete'; state.percent = 100; state.status = 'Instalado';
+      state.state = 'complete'; state.percent = 100; state.status = 'Installed';
     } catch (error) {
       state.state = 'error'; state.status = 'Error'; state.error = (error as Error).message;
     }

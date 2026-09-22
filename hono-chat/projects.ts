@@ -52,26 +52,26 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 function validateProject(value: unknown, index: number): Project {
-  if (!isRecord(value)) throw new Error(`El proyecto ${index + 1} no es un objeto válido.`);
+  if (!isRecord(value)) throw new Error(`Project ${index + 1} is not a valid object.`);
   const { id, name, docsPath, model, settings, createdAt } = value;
-  if (typeof id !== 'string' || !projectIdPattern.test(id)) throw new Error(`El proyecto ${index + 1} tiene un identificador no válido.`);
-  if (typeof name !== 'string' || !name.trim() || name.length > 80) throw new Error(`El proyecto ${id} tiene un nombre no válido.`);
-  if (typeof docsPath !== 'string' || !path.isAbsolute(docsPath)) throw new Error(`El proyecto ${id} tiene una ruta de documentos no válida.`);
-  if (typeof model !== 'string' || !model.trim() || model.length > 200) throw new Error(`El proyecto ${id} tiene un modelo no válido.`);
-  if (!isRecord(settings)) throw new Error(`El proyecto ${id} tiene ajustes no válidos.`);
+  if (typeof id !== 'string' || !projectIdPattern.test(id)) throw new Error(`Project ${index + 1} has an invalid identifier.`);
+  if (typeof name !== 'string' || !name.trim() || name.length > 80) throw new Error(`Project ${id} has an invalid name.`);
+  if (typeof docsPath !== 'string' || !path.isAbsolute(docsPath)) throw new Error(`Project ${id} has an invalid documents path.`);
+  if (typeof model !== 'string' || !model.trim() || model.length > 200) throw new Error(`Project ${id} has an invalid model.`);
+  if (!isRecord(settings)) throw new Error(`Project ${id} has invalid settings.`);
   const validatedSettings: Record<string, string> = {};
   for (const [key, settingValue] of Object.entries(settings)) {
     if (!settingKeyPattern.test(key) || typeof settingValue !== 'string' || settingValue.length > 4096 || /[\r\n]/.test(settingValue)) {
-      throw new Error(`El proyecto ${id} contiene un ajuste no válido: ${key}.`);
+      throw new Error(`Project ${id} contains an invalid setting: ${key}.`);
     }
     validatedSettings[key] = settingValue;
   }
-  if (typeof createdAt !== 'string' || Number.isNaN(Date.parse(createdAt))) throw new Error(`El proyecto ${id} tiene una fecha no válida.`);
+  if (typeof createdAt !== 'string' || Number.isNaN(Date.parse(createdAt))) throw new Error(`Project ${id} has an invalid date.`);
   return { id, name: name.trim(), docsPath, model: model.trim(), settings: validatedSettings, createdAt };
 }
 
 function assertProjectId(id: string): void {
-  if (!projectIdPattern.test(id)) throw new Error('Identificador de proyecto no válido.');
+  if (!projectIdPattern.test(id)) throw new Error('Invalid project identifier.');
 }
 
 export interface ProjectService {
@@ -120,12 +120,12 @@ export function projectRagConfig(project: Project): Partial<Config> {
   const env = projectEnvironment(project);
   const integer = (key: string, fallback: number, min = 1) => {
     const parsed = Number(env[key] ?? fallback);
-    if (!Number.isInteger(parsed) || parsed < min) throw new Error(`${key} debe ser un entero mayor o igual que ${min}.`);
+    if (!Number.isInteger(parsed) || parsed < min) throw new Error(`${key} must be an integer greater than or equal to ${min}.`);
     return parsed;
   };
   const number = (key: string, fallback: number) => {
     const parsed = Number(env[key] ?? fallback);
-    if (!Number.isFinite(parsed)) throw new Error(`${key} debe ser un número válido.`);
+    if (!Number.isFinite(parsed)) throw new Error(`${key} must be a valid number.`);
     return parsed;
   };
   const files = projectFiles(project);
@@ -175,9 +175,9 @@ export class LocalProjectService implements ProjectService {
     await mkdir(runtimeRoot, { recursive: true });
     try {
       const parsed = JSON.parse(await readFile(projectsPath, 'utf8')) as unknown;
-      if (!Array.isArray(parsed)) throw new Error('El archivo de proyectos no contiene una lista.');
+      if (!Array.isArray(parsed)) throw new Error('The projects file does not contain a list.');
       const validated = parsed.map(validateProject);
-      if (new Set(validated.map(project => project.id)).size !== validated.length) throw new Error('El archivo de proyectos contiene identificadores duplicados.');
+      if (new Set(validated.map(project => project.id)).size !== validated.length) throw new Error('The projects file contains duplicate identifiers.');
       this.projects = validated;
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
@@ -210,15 +210,15 @@ export class LocalProjectService implements ProjectService {
 
   async get(id: string) {
     const project = (await this.load()).find(item => item.id === id);
-    if (!project) throw new Error('Proyecto no encontrado.');
+    if (!project) throw new Error('Project not found.');
     return safeProject(project);
   }
 
   async create(input: { name: string; docsPath: string }) {
     const name = input.name.trim();
-    if (!name || name.length > 80) throw new Error('El nombre del proyecto debe tener entre 1 y 80 caracteres.');
+    if (!name || name.length > 80) throw new Error('The project name must be between 1 and 80 characters.');
     const docsPath = path.resolve(input.docsPath.trim());
-    if (!(await stat(docsPath).catch(() => undefined))?.isDirectory()) throw new Error('La carpeta de documentos no existe o no es accesible.');
+    if (!(await stat(docsPath).catch(() => undefined))?.isDirectory()) throw new Error('The documents folder does not exist or cannot be accessed.');
     return this.mutate(async () => {
       const projects = await this.load();
       const project: Project = { id: randomUUID(), name, docsPath, model: config().model, settings: {}, createdAt: new Date().toISOString() };
@@ -232,9 +232,9 @@ export class LocalProjectService implements ProjectService {
   async remove(id: string) {
     return this.mutate(async () => {
       const projects = await this.load();
-      if (projects.length === 1) throw new Error('Debe existir al menos un proyecto.');
+      if (projects.length === 1) throw new Error('At least one project must remain.');
       const removed = projects.find(item => item.id === id);
-      if (!removed) throw new Error('Proyecto no encontrado.');
+      if (!removed) throw new Error('Project not found.');
       const next = projects.filter(item => item.id !== id);
       await this.save(next);
       this.projects = next;
@@ -248,7 +248,7 @@ export class LocalProjectService implements ProjectService {
     return this.mutate(async () => {
       const projects = await this.load();
       const project = projects.find(item => item.id === id);
-      if (!project) throw new Error('Proyecto no encontrado.');
+      if (!project) throw new Error('Project not found.');
       const updated = { ...project, model };
       const next = projects.map(item => item.id === id ? updated : item);
       await this.save(next);
@@ -261,7 +261,7 @@ export class LocalProjectService implements ProjectService {
     return this.mutate(async () => {
       const projects = await this.load();
       const project = projects.find(item => item.id === id);
-      if (!project) throw new Error('Proyecto no encontrado.');
+      if (!project) throw new Error('Project not found.');
       const updated = { ...project, settings: { ...project.settings, ...settings } };
       const next = projects.map(item => item.id === id ? updated : item);
       await this.save(next);

@@ -42,7 +42,7 @@ function fixedWindowRateLimit(limit: number, windowMs: number): MiddlewareHandle
     }
     if (requests >= limit) {
       c.header('Retry-After', String(Math.max(1, Math.ceil((windowMs - (now - windowStartedAt)) / 1000))));
-      return c.json({ error: 'Demasiadas solicitudes. Inténtalo de nuevo en unos segundos.' }, 429);
+      return c.json({ error: 'Too many requests. Try again in a few seconds.' }, 429);
     }
     requests += 1;
     await next();
@@ -51,7 +51,7 @@ function fixedWindowRateLimit(limit: number, windowMs: number): MiddlewareHandle
 
 export const localMaintenance: Maintenance = {
   openDocuments(project) {
-    if (process.platform !== 'win32') throw new Error('Abrir la carpeta automáticamente solo está configurado para Windows.');
+    if (process.platform !== 'win32') throw new Error('Opening the folder automatically is only configured for Windows.');
     spawn('explorer.exe', [project?.docsPath ?? path.join(ragRoot, 'docs')], { detached: true, stdio: 'ignore', windowsHide: false }).unref();
   },
   async regenerate(project) {
@@ -65,7 +65,7 @@ export const localMaintenance: Maintenance = {
         if (summary && typeof summary === 'object') return summary;
       } catch { /* Progress lines are intentionally ignored. */ }
     }
-    return { message: 'Índice regenerado.' };
+    return { message: 'Index regenerated.' };
   },
 };
 
@@ -94,6 +94,7 @@ export function createApp(runAsk: Ask = askRag, maintenance: Maintenance = local
   const enqueue = serialQueue();
   const projectFor = async (id: unknown) => typeof id === 'string' && id ? projects.get(id) : undefined;
   const pendingRequests = new Map<string, Map<string, string>>();
+  let askInProgress = false;
 
   app.use('*', async (c, next) => {
     c.header('X-Content-Type-Options', 'nosniff');
@@ -103,7 +104,7 @@ export function createApp(runAsk: Ask = askRag, maintenance: Maintenance = local
   });
   app.use('/api/*', bodyLimit({
     maxSize: API_BODY_LIMIT_BYTES,
-    onError: c => c.json({ error: 'La solicitud supera el límite de 64 KiB.' }, 413),
+    onError: c => c.json({ error: 'The request exceeds the 64 KiB limit.' }, 413),
   }));
   app.use('/api/ask', fixedWindowRateLimit(ASK_RATE_LIMIT, ASK_RATE_WINDOW_MS));
 
@@ -118,19 +119,19 @@ export function createApp(runAsk: Ask = askRag, maintenance: Maintenance = local
 
   app.get('/api/projects', async c => {
     try { return c.json({ projects: await projects.list() }); }
-    catch (error) { console.error('[hono-chat] projects list', error); return c.json({ error: 'No se pudieron cargar los proyectos.' }, 500); }
+    catch (error) { console.error('[hono-chat] projects list', error); return c.json({ error: 'Could not load projects.' }, 500); }
   });
 
   app.post('/api/projects', async c => {
-    if (c.req.header('X-Local-RAG') !== '1') return c.json({ error: 'Petición local no válida.' }, 403);
+    if (c.req.header('X-Local-RAG') !== '1') return c.json({ error: 'Invalid local request.' }, 403);
     const body = await c.req.json<{ name?: unknown; docsPath?: unknown }>().catch(() => undefined);
-    if (!body || typeof body.name !== 'string' || typeof body.docsPath !== 'string') return c.json({ error: 'Nombre y carpeta son obligatorios.' }, 400);
+    if (!body || typeof body.name !== 'string' || typeof body.docsPath !== 'string') return c.json({ error: 'A name and folder are required.' }, 400);
     try { return c.json({ project: await projects.create({ name: body.name, docsPath: body.docsPath }) }, 201); }
     catch (error) { return c.json({ error: (error as Error).message }, 400); }
   });
 
   app.delete('/api/projects/:id', async c => {
-    if (c.req.header('X-Local-RAG') !== '1') return c.json({ error: 'Petición local no válida.' }, 403);
+    if (c.req.header('X-Local-RAG') !== '1') return c.json({ error: 'Invalid local request.' }, 403);
     try { const id = c.req.param('id'); pendingRequests.delete(id); await projects.remove(id); return c.json({ ok: true }); }
     catch (error) { return c.json({ error: (error as Error).message }, 400); }
   });
@@ -147,7 +148,7 @@ export function createApp(runAsk: Ask = askRag, maintenance: Maintenance = local
   });
 
   app.delete('/api/projects/:id/messages', async c => {
-    if (c.req.header('X-Local-RAG') !== '1') return c.json({ error: 'Petición local no válida.' }, 403);
+    if (c.req.header('X-Local-RAG') !== '1') return c.json({ error: 'Invalid local request.' }, 403);
     try {
       const id = c.req.param('id');
       pendingRequests.delete(id);
@@ -157,14 +158,14 @@ export function createApp(runAsk: Ask = askRag, maintenance: Maintenance = local
   });
 
   app.post('/api/folders/select', async c => {
-    if (c.req.header('X-Local-RAG') !== '1') return c.json({ error: 'Petición local no válida.' }, 403);
-    if (process.platform !== 'win32') return c.json({ error: 'El selector nativo de carpetas solo está disponible en Windows.' }, 501);
-    const command = "Add-Type -AssemblyName System.Windows.Forms; $dialog = New-Object System.Windows.Forms.FolderBrowserDialog; $dialog.Description = 'Selecciona la carpeta de documentos'; $dialog.ShowNewFolderButton = $true; if ($dialog.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) { [Console]::OutputEncoding = [System.Text.Encoding]::UTF8; Write-Output $dialog.SelectedPath }";
+    if (c.req.header('X-Local-RAG') !== '1') return c.json({ error: 'Invalid local request.' }, 403);
+    if (process.platform !== 'win32') return c.json({ error: 'The native folder picker is only available on Windows.' }, 501);
+    const command = "Add-Type -AssemblyName System.Windows.Forms; $dialog = New-Object System.Windows.Forms.FolderBrowserDialog; $dialog.Description = 'Select the documents folder'; $dialog.ShowNewFolderButton = $true; if ($dialog.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) { [Console]::OutputEncoding = [System.Text.Encoding]::UTF8; Write-Output $dialog.SelectedPath }";
     try {
       const { stdout } = await execFileAsync('powershell.exe', ['-NoProfile', '-STA', '-Command', command], { windowsHide: false, timeout: 10 * 60 * 1000 });
       const selectedPath = stdout.trim();
       return selectedPath ? c.json({ path: selectedPath }) : c.json({ cancelled: true });
-    } catch (error) { console.error('[hono-chat] folder picker', error); return c.json({ error: 'No se pudo abrir el selector de carpetas.' }, 500); }
+    } catch (error) { console.error('[hono-chat] folder picker', error); return c.json({ error: 'Could not open the folder picker.' }, 500); }
   });
 
   app.get('/api/models', async c => {
@@ -172,7 +173,7 @@ export function createApp(runAsk: Ask = askRag, maintenance: Maintenance = local
       const project = await projectFor(c.req.query('projectId'));
       return c.json(await models.list(project?.model));
     }
-    catch (error) { console.error('[hono-chat] models', error); return c.json({ error: 'No se pudo consultar Ollama ni detectar el hardware.' }, 503); }
+    catch (error) { console.error('[hono-chat] models', error); return c.json({ error: 'Could not query Ollama or detect the hardware.' }, 503); }
   });
 
   app.get('/api/settings', async c => {
@@ -181,13 +182,13 @@ export function createApp(runAsk: Ask = askRag, maintenance: Maintenance = local
       const overrides = project ? { ...project.settings, DOCS_DIR: project.docsPath, RAG_CHAT_MODEL: project.model } : undefined;
       return c.json({ settings: await settings.list(overrides) });
     }
-    catch (error) { console.error('[hono-chat] settings list', error); return c.json({ error: 'No se pudieron cargar los ajustes.' }, 500); }
+    catch (error) { console.error('[hono-chat] settings list', error); return c.json({ error: 'Could not load settings.' }, 500); }
   });
 
   app.post('/api/settings', async c => {
-    if (c.req.header('X-Local-RAG') !== '1') return c.json({ error: 'Petición local no válida.' }, 403);
+    if (c.req.header('X-Local-RAG') !== '1') return c.json({ error: 'Invalid local request.' }, 403);
     const body = await c.req.json<{ settings?: unknown; regenerate?: unknown; projectId?: unknown }>().catch(() => undefined);
-    if (!body || !body.settings || typeof body.settings !== 'object' || Array.isArray(body.settings) || typeof body.regenerate !== 'boolean') return c.json({ error: 'Ajustes no válidos.' }, 400);
+    if (!body || !body.settings || typeof body.settings !== 'object' || Array.isArray(body.settings) || typeof body.regenerate !== 'boolean') return c.json({ error: 'Invalid settings.' }, 400);
     try {
       const project = await projectFor(body.projectId);
       const result = await enqueue(async () => {
@@ -204,14 +205,14 @@ export function createApp(runAsk: Ask = askRag, maintenance: Maintenance = local
       return c.json({ ok: true, ...publicResult });
     } catch (error) {
       console.error('[hono-chat] settings apply', error);
-      return c.json({ error: (error as Error).message || 'No se pudieron aplicar los ajustes.' }, 400);
+      return c.json({ error: (error as Error).message || 'Could not apply settings.' }, 400);
     }
   });
 
   app.post('/api/models/select', async c => {
-    if (c.req.header('X-Local-RAG') !== '1') return c.json({ error: 'Petición local no válida.' }, 403);
+    if (c.req.header('X-Local-RAG') !== '1') return c.json({ error: 'Invalid local request.' }, 403);
     const body = await c.req.json<{ model?: unknown; projectId?: unknown }>().catch(() => undefined);
-    if (!body || typeof body.model !== 'string') return c.json({ error: 'Modelo no válido.' }, 400);
+    if (!body || typeof body.model !== 'string') return c.json({ error: 'Invalid model.' }, 400);
     const requestedModel = body.model;
     try {
       const project = await projectFor(body.projectId);
@@ -222,34 +223,34 @@ export function createApp(runAsk: Ask = askRag, maintenance: Maintenance = local
   });
 
   app.post('/api/models/install', async c => {
-    if (c.req.header('X-Local-RAG') !== '1') return c.json({ error: 'Petición local no válida.' }, 403);
+    if (c.req.header('X-Local-RAG') !== '1') return c.json({ error: 'Invalid local request.' }, 403);
     const body = await c.req.json<{ model?: unknown }>().catch(() => undefined);
-    if (!body || typeof body.model !== 'string') return c.json({ error: 'Modelo no válido.' }, 400);
+    if (!body || typeof body.model !== 'string') return c.json({ error: 'Invalid model.' }, 400);
     try { return c.json({ ok: true, job: await models.install(body.model) }, 202); }
     catch (error) { return c.json({ error: (error as Error).message }, 400); }
   });
 
   app.get('/api/models/install/status', c => {
     const name = c.req.query('model');
-    if (!name) return c.json({ error: 'Falta el modelo.' }, 400);
+    if (!name) return c.json({ error: 'Missing model.' }, 400);
     const job = models.installStatus(name);
-    return job ? c.json({ job }) : c.json({ error: 'Descarga no encontrada.' }, 404);
+    return job ? c.json({ job }) : c.json({ error: 'Download not found.' }, 404);
   });
 
   app.post('/api/documents/open', async c => {
-    if (c.req.header('X-Local-RAG') !== '1') return c.json({ error: 'Petición local no válida.' }, 403);
+    if (c.req.header('X-Local-RAG') !== '1') return c.json({ error: 'Invalid local request.' }, 403);
     try {
       const body = await c.req.json<{ projectId?: unknown }>().catch((): { projectId?: unknown } => ({}));
       await maintenance.openDocuments(await projectFor(body.projectId));
       return c.json({ ok: true });
     } catch (error) {
       console.error('[hono-chat] open documents', error);
-      return c.json({ error: 'No se pudo abrir la carpeta de documentos.' }, 500);
+      return c.json({ error: 'Could not open the documents folder.' }, 500);
     }
   });
 
   app.post('/api/rag/regenerate', async c => {
-    if (c.req.header('X-Local-RAG') !== '1') return c.json({ error: 'Petición local no válida.' }, 403);
+    if (c.req.header('X-Local-RAG') !== '1') return c.json({ error: 'Invalid local request.' }, 403);
     try {
       const body = await c.req.json<{ projectId?: unknown }>().catch((): { projectId?: unknown } => ({}));
       const project = await projectFor(body.projectId);
@@ -258,53 +259,59 @@ export function createApp(runAsk: Ask = askRag, maintenance: Maintenance = local
       return c.json({ ok: true, summary });
     } catch (error) {
       console.error('[hono-chat] regenerate', error);
-      return c.json({ error: 'No se pudo regenerar el RAG. Revisa la consola del servidor.' }, 500);
+      return c.json({ error: 'Could not regenerate the RAG. Check the server console.' }, 500);
     }
   });
 
   app.post('/api/ask', async c => {
     let body: unknown;
     try { body = await c.req.json(); }
-    catch { return c.json({ error: 'El cuerpo debe ser JSON válido.' }, 400); }
-    if (!body || typeof body !== 'object') return c.json({ error: 'Petición inválida.' }, 400);
+    catch { return c.json({ error: 'The request body must be valid JSON.' }, 400); }
+    if (!body || typeof body !== 'object') return c.json({ error: 'Invalid request.' }, 400);
     const input = body as { question?: unknown; mode?: unknown; projectId?: unknown };
     const question = typeof input.question === 'string' ? input.question.trim() : '';
     const mode = typeof input.mode === 'string' ? input.mode : 'auto';
-    if (!question) return c.json({ error: 'Escribe una pregunta.' }, 400);
-    if (question.length > 4000) return c.json({ error: 'La pregunta supera los 4000 caracteres.' }, 400);
-    if (!modes.has(mode)) return c.json({ error: 'Modo no válido.' }, 400);
+    if (!question) return c.json({ error: 'Enter a question.' }, 400);
+    if (question.length > 4000) return c.json({ error: 'The question exceeds 4000 characters.' }, 400);
+    if (!modes.has(mode)) return c.json({ error: 'Invalid mode.' }, 400);
 
     try {
       const project = await projectFor(input.projectId);
-      const requestId = project ? randomUUID() : undefined;
-      if (project && requestId) {
-        const projectPending = pendingRequests.get(project.id) ?? new Map<string, string>();
-        projectPending.set(requestId, question);
-        pendingRequests.set(project.id, projectPending);
-      }
+      if (askInProgress) return c.json({ error: 'An answer is already being generated. Wait for it to finish before asking another question.' }, 409);
+      askInProgress = true;
       try {
-        const result = await enqueue(() => runAsk(question, { mode: mode as AskOptions['mode'], config: project ? projectRagConfig(project) : { model: models.current() } }));
-        const answer = answerWithoutInlineCitations(result.answer, result.sources);
-        const meta = { cacheHit: result.metrics.cacheHit, totalMs: Math.round(result.metrics.totalMs) };
-        if (project && requestId && pendingRequests.get(project.id)?.has(requestId)) await projects.addMessages?.(project.id, [
-          { role: 'user', text: question },
-          { role: 'assistant', text: answer, sources: result.sources, meta },
-        ]);
-        return c.json({ answer, status: result.status, sources: result.sources, meta });
-      } finally {
+        const requestId = project ? randomUUID() : undefined;
         if (project && requestId) {
-          const projectPending = pendingRequests.get(project.id);
-          projectPending?.delete(requestId);
-          if (!projectPending?.size) pendingRequests.delete(project.id);
+          const projectPending = pendingRequests.get(project.id) ?? new Map<string, string>();
+          projectPending.set(requestId, question);
+          pendingRequests.set(project.id, projectPending);
         }
+        try {
+          const result = await enqueue(() => runAsk(question, { mode: mode as AskOptions['mode'], config: project ? projectRagConfig(project) : { model: models.current() } }));
+          const answer = answerWithoutInlineCitations(result.answer, result.sources);
+          const meta = { cacheHit: result.metrics.cacheHit, totalMs: Math.round(result.metrics.totalMs) };
+          if (project && requestId && pendingRequests.get(project.id)?.has(requestId)) await projects.addMessages?.(project.id, [
+            { role: 'user', text: question },
+            { role: 'assistant', text: answer, sources: result.sources, meta },
+          ]);
+          return c.json({ answer, status: result.status, sources: result.sources, meta });
+        } finally {
+          if (project && requestId) {
+            const projectPending = pendingRequests.get(project.id);
+            projectPending?.delete(requestId);
+            if (!projectPending?.size) pendingRequests.delete(project.id);
+          }
+        }
+      } finally {
+        askInProgress = false;
       }
     } catch (error) {
       console.error('[hono-chat]', error);
-      return c.json({ error: 'No se pudo consultar el RAG local. Revisa Ollama, Chroma y el índice.' }, 503);
+      return c.json({ error: 'Could not query the local RAG. Check Ollama, Chroma, and the index.' }, 503);
     }
   });
 
-  app.notFound(c => c.json({ error: 'Ruta no encontrada.' }, 404));
+  app.notFound(c => c.json({ error: 'Route not found.' }, 404));
   return app;
 }
 

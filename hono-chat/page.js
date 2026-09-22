@@ -41,6 +41,32 @@ let activeProject = null;
 let loadedSettings = [];
 const pendingChats = new Map();
 let noticeTimer;
+const settingTooltip = document.createElement('div');
+settingTooltip.className = 'setting-tooltip';
+settingTooltip.id = 'setting-tooltip';
+settingTooltip.setAttribute('role', 'tooltip');
+settingTooltip.hidden = true;
+settingsDialog.append(settingTooltip);
+
+function showSettingTooltip(trigger, text) {
+  settingTooltip.textContent = text;
+  settingTooltip.hidden = false;
+  const triggerRect = trigger.getBoundingClientRect();
+  const viewportPadding = 12;
+  const tooltipWidth = Math.min(310, window.innerWidth - viewportPadding * 2);
+  settingTooltip.style.width = `${tooltipWidth}px`;
+  const tooltipHeight = settingTooltip.getBoundingClientRect().height;
+  const left = Math.max(viewportPadding, Math.min(triggerRect.left + triggerRect.width / 2 - tooltipWidth / 2, window.innerWidth - tooltipWidth - viewportPadding));
+  const top = triggerRect.top - tooltipHeight - 8 >= viewportPadding
+    ? triggerRect.top - tooltipHeight - 8
+    : triggerRect.bottom + 8;
+  settingTooltip.style.left = `${left}px`;
+  settingTooltip.style.top = `${Math.min(top, window.innerHeight - tooltipHeight - viewportPadding)}px`;
+}
+
+function hideSettingTooltip() {
+  settingTooltip.hidden = true;
+}
 
 function notify(text, error = false, persist = false) {
   clearTimeout(noticeTimer);
@@ -58,17 +84,19 @@ async function requestJson(url, options) {
 }
 
 function projectQuery() {
-  if (!activeProject) throw new Error('Selecciona un proyecto.');
+  if (!activeProject) throw new Error('Select a project.');
   return `projectId=${encodeURIComponent(activeProject.id)}`;
 }
 
 function projectBody(extra = {}) {
-  if (!activeProject) throw new Error('Selecciona un proyecto.');
+  if (!activeProject) throw new Error('Select a project.');
   return JSON.stringify({ projectId: activeProject.id, ...extra });
 }
 
 function setControlsEnabled(enabled) {
-  for (const control of [documents, clearConversation, regenerate, modelsButton, settingsButton, input, send, mode]) control.disabled = !enabled;
+  for (const control of [documents, clearConversation, regenerate, modelsButton, settingsButton]) control.disabled = !enabled;
+  const chatEnabled = enabled && pendingChats.size === 0;
+  for (const control of [input, send, mode]) control.disabled = !chatEnabled;
 }
 
 function resetChat() {
@@ -77,8 +105,8 @@ function resetChat() {
   welcome.className = 'welcome';
   welcome.id = 'welcome';
   const title = document.createElement('strong');
-  title.textContent = '¿Qué quieres consultar?';
-  welcome.append(title, `Pregunta sobre los documentos de ${activeProject?.name ?? 'este proyecto'}.`);
+  title.textContent = 'What would you like to know?';
+  welcome.append(title, `Ask about the documents in ${activeProject?.name ?? 'this project'}.`);
   box.append(welcome);
 }
 
@@ -107,8 +135,17 @@ async function loadConversation(projectId) {
     for (const saved of data.messages) message(saved.role, saved.text, saved.sources || [], saved.meta || null);
     renderPending(projectId, data.pending || []);
   } catch (error) {
-    if (activeProject?.id === projectId) notify(error.message || 'No se pudo cargar la conversación.', true);
+    if (activeProject?.id === projectId) notify(error.message || 'Could not load the conversation.', true);
   }
+}
+
+function projectHue(projectId) {
+  let hash = 2166136261;
+  for (const character of projectId) {
+    hash ^= character.codePointAt(0);
+    hash = Math.imul(hash, 16777619);
+  }
+  return (hash >>> 0) % 360;
 }
 
 function renderProjects() {
@@ -117,6 +154,7 @@ function renderProjects() {
   for (const project of projects) {
     const row = document.createElement('div');
     row.className = `project-row${project.id === activeProject?.id ? ' active' : ''}`;
+    row.style.setProperty('--project-hue', projectHue(project.id));
 
     const select = document.createElement('button');
     select.className = 'project-select';
@@ -138,8 +176,8 @@ function renderProjects() {
     const remove = document.createElement('button');
     remove.className = 'project-remove';
     remove.type = 'button';
-    remove.title = `Eliminar ${project.name}`;
-    remove.setAttribute('aria-label', `Eliminar ${project.name}`);
+    remove.title = `Remove ${project.name}`;
+    remove.setAttribute('aria-label', `Remove ${project.name}`);
     remove.textContent = '×';
     remove.addEventListener('click', () => removeProject(project));
     row.append(select, remove);
@@ -172,8 +210,8 @@ async function loadProjects(preferredId) {
   const selected = projects.find(project => project.id === selectedId) || projects[0];
   if (selected) selectProject(selected.id);
   else {
-    activeProjectName.textContent = 'Sin proyectos';
-    activeProjectPath.textContent = 'Añade un proyecto para comenzar';
+    activeProjectName.textContent = 'No projects';
+    activeProjectPath.textContent = 'Add a project to get started';
     setControlsEnabled(false);
   }
 }
@@ -183,32 +221,32 @@ async function addNewProject() {
   try {
     const selection = await requestJson('/api/folders/select', { method: 'POST', headers: maintenanceHeaders, body: '{}' });
     if (selection.cancelled) return;
-    const suggestedName = selection.path.split(/[\\/]/).filter(Boolean).at(-1) || 'Nuevo proyecto';
-    const name = prompt('Nombre del proyecto:', suggestedName)?.trim();
+    const suggestedName = selection.path.split(/[\\/]/).filter(Boolean).at(-1) || 'New project';
+    const name = prompt('Project name:', suggestedName)?.trim();
     if (!name) return;
     const data = await requestJson('/api/projects', {
       method: 'POST', headers: maintenanceHeaders,
       body: JSON.stringify({ name, docsPath: selection.path }),
     });
     await loadProjects(data.project.id);
-    notify(`Proyecto “${data.project.name}” creado. Pulsa Regenerar RAG para crear su índice.`);
+    notify(`Project “${data.project.name}” created. Select Regenerate RAG to build its index.`);
   } catch (error) {
-    notify(error.message || 'No se pudo crear el proyecto.', true);
+    notify(error.message || 'Could not create the project.', true);
   } finally {
     addProject.disabled = false;
   }
 }
 
 async function removeProject(project) {
-  if (!confirm(`¿Eliminar el proyecto “${project.name}”? Los documentos originales no se borrarán.`)) return;
+  if (!confirm(`Remove project “${project.name}”? Its original documents will not be deleted.`)) return;
   try {
     await requestJson(`/api/projects/${encodeURIComponent(project.id)}`, { method: 'DELETE', headers: maintenanceHeaders });
     pendingChats.delete(project.id);
     if (activeProject?.id === project.id) activeProject = null;
     await loadProjects();
-    notify('Proyecto eliminado. Los documentos originales siguen intactos.');
+    notify('Project removed. Its original documents are unchanged.');
   } catch (error) {
-    notify(error.message || 'No se pudo eliminar el proyecto.', true);
+    notify(error.message || 'Could not remove the project.', true);
   }
 }
 
@@ -220,8 +258,8 @@ function message(role, text, sources = [], meta = null) {
   row.className = `message ${role}`;
   if (role === 'assistant') {
     const avatar = document.createElement('div');
-    avatar.className = 'avatar';
-    avatar.textContent = 'AI';
+    avatar.className = 'avatar assistant-name';
+    avatar.textContent = `${activeProject?.name ?? 'RAGen'} Agent`;
     row.append(avatar);
   }
   const bubble = document.createElement('div');
@@ -231,7 +269,7 @@ function message(role, text, sources = [], meta = null) {
     const list = document.createElement('details');
     list.className = 'sources';
     const summary = document.createElement('summary');
-    summary.textContent = sources.length === 1 ? '1 fuente' : `${sources.length} fuentes`;
+    summary.textContent = sources.length === 1 ? '1 source' : `${sources.length} sources`;
     list.append(summary);
     for (const item of sources) {
       const line = document.createElement('span');
@@ -245,7 +283,7 @@ function message(role, text, sources = [], meta = null) {
   if (meta) {
     const detail = document.createElement('div');
     detail.className = 'meta';
-    detail.textContent = `${meta.cacheHit ? 'Caché · ' : ''}${(meta.totalMs / 1000).toFixed(1)} s`;
+    detail.textContent = `${meta.cacheHit ? 'Cache · ' : ''}${(meta.totalMs / 1000).toFixed(1)} s`;
     bubble.append(detail);
   }
   row.append(bubble);
@@ -268,8 +306,7 @@ form.addEventListener('submit', async event => {
   message('user', question);
   input.value = '';
   resizeInput();
-  send.disabled = true;
-  mode.disabled = true;
+  setControlsEnabled(true);
   const pending = appendTyping();
   try {
     const data = await requestJson('/api/ask', {
@@ -284,9 +321,8 @@ form.addEventListener('submit', async event => {
     pendingChats.delete(requestProjectId);
     if (activeProject?.id === requestProjectId) message('assistant', `Error: ${error.message}`);
   } finally {
-    send.disabled = false;
-    mode.disabled = false;
-    input.focus();
+    setControlsEnabled(Boolean(activeProject));
+    if (!input.disabled) input.focus();
   }
 });
 
@@ -297,15 +333,15 @@ input.addEventListener('keydown', event => {
 addProject.addEventListener('click', addNewProject);
 
 clearConversation.addEventListener('click', async () => {
-  if (!activeProject || !confirm(`¿Borrar la conversación de “${activeProject.name}”?`)) return;
+  if (!activeProject || !confirm(`Clear the conversation for “${activeProject.name}”?`)) return;
   clearConversation.disabled = true;
   try {
     await requestJson(`/api/projects/${encodeURIComponent(activeProject.id)}/messages`, { method: 'DELETE', headers: maintenanceHeaders });
     pendingChats.delete(activeProject.id);
     resetChat();
-    notify('Conversación borrada.');
+    notify('Conversation cleared.');
   } catch (error) {
-    notify(error.message || 'No se pudo borrar la conversación.', true);
+    notify(error.message || 'Could not clear the conversation.', true);
   } finally { clearConversation.disabled = false; }
 });
 
@@ -314,23 +350,23 @@ documents.addEventListener('click', async () => {
   try {
     await requestJson('/api/documents/open', { method: 'POST', headers: maintenanceHeaders, body: projectBody() });
   } catch (error) {
-    notify(error.message || 'No se pudo abrir la carpeta.', true);
+    notify(error.message || 'Could not open the folder.', true);
   } finally { documents.disabled = false; }
 });
 
 regenerate.addEventListener('click', async () => {
-  if (!activeProject || !confirm(`Se actualizará el índice de “${activeProject.name}”. ¿Continuar?`)) return;
+  if (!activeProject || !confirm(`The index for “${activeProject.name}” will be rebuilt. Continue?`)) return;
   const oldText = regenerate.textContent;
   for (const control of [regenerate, documents, send, mode]) control.disabled = true;
-  regenerate.textContent = 'Regenerando…';
-  notify('Regenerando el índice del proyecto activo…', false, true);
+  regenerate.textContent = 'Regenerating…';
+  notify('Regenerating the active project index…', false, true);
   try {
     const data = await requestJson('/api/rag/regenerate', { method: 'POST', headers: maintenanceHeaders, body: projectBody() });
     pendingChats.delete(activeProject.id);
     resetChat();
-    notify(data.summary?.chunks ? `RAG actualizado: ${data.summary.chunks} fragmentos disponibles.` : 'RAG actualizado correctamente.');
+    notify(data.summary?.chunks ? `RAG updated: ${data.summary.chunks} chunks available.` : 'RAG updated successfully.');
   } catch (error) {
-    notify(error.message || 'No se pudo regenerar el RAG.', true);
+    notify(error.message || 'Could not regenerate the RAG.', true);
   } finally {
     regenerate.textContent = oldText;
     for (const control of [regenerate, documents, send, mode]) control.disabled = false;
@@ -346,19 +382,19 @@ async function pollInstall(name, button, bar) {
   button.textContent = `${data.job.status} ${data.job.percent}%`;
   bar.style.width = `${data.job.percent}%`;
   if (data.job.state === 'downloading') return pollInstall(name, button, bar);
-  if (data.job.state === 'error') { button.disabled = false; notify(data.job.error || 'Falló la instalación.', true); return; }
-  notify(`${name} instalado correctamente.`);
+  if (data.job.state === 'error') { button.disabled = false; notify(data.job.error || 'Installation failed.', true); return; }
+  notify(`${name} installed successfully.`);
   await loadModels();
 }
 
 async function loadModels() {
-  modelList.textContent = 'Consultando Ollama…';
+  modelList.textContent = 'Checking Ollama…';
   try {
     const data = await requestJson(`/api/models?${projectQuery()}`);
     const hw = data.hardware;
     hardware.textContent = hw.gpu
       ? `${hw.gpu} · ${(hw.vramBytes / 1073741824).toFixed(1)} GB VRAM · ${(hw.ramBytes / 1073741824).toFixed(1)} GB RAM`
-      : `GPU/VRAM no detectada · ${(hw.ramBytes / 1073741824).toFixed(1)} GB RAM · valoración conservadora`;
+      : `GPU/VRAM not detected · ${(hw.ramBytes / 1073741824).toFixed(1)} GB RAM · conservative estimate`;
     modelName.textContent = data.current;
     modelList.textContent = '';
     for (const item of data.models) {
@@ -374,21 +410,21 @@ async function loadModels() {
       title.append(' ', rating);
       const detail = document.createElement('div');
       detail.className = 'model-detail';
-      detail.textContent = `${size(item.sizeBytes)}${item.quantization ? ` · ${item.quantization}` : ''} · ${item.installed ? 'Instalado' : 'No instalado'}`;
+      detail.textContent = `${size(item.sizeBytes)}${item.quantization ? ` · ${item.quantization}` : ''} · ${item.installed ? 'Installed' : 'Not installed'}`;
       const action = document.createElement('button');
       action.className = 'model-action';
       action.type = 'button';
-      action.textContent = item.selected ? 'Activo' : item.installed ? 'Usar' : 'Instalar';
+      action.textContent = item.selected ? 'Active' : item.installed ? 'Use' : 'Install';
       action.disabled = item.selected;
       action.addEventListener('click', async () => {
-        if (item.rating === 'red' && !confirm(`${item.reason} ¿Continuar?`)) return;
+        if (item.rating === 'red' && !confirm(`${item.reason} Continue?`)) return;
         action.disabled = true;
         try {
           if (item.installed) {
             const selected = await requestJson('/api/models/select', { method: 'POST', headers: maintenanceHeaders, body: projectBody({ model: item.name }) });
             activeProject.model = selected.model;
             modelName.textContent = selected.model;
-            notify(`Modelo de ${activeProject.name}: ${selected.model}`);
+            notify(`Model for ${activeProject.name}: ${selected.model}`);
             renderProjects();
             await loadModels();
           } else {
@@ -401,12 +437,12 @@ async function loadModels() {
             card.append(progress);
             await pollInstall(item.name, action, bar);
           }
-        } catch (error) { action.disabled = false; notify(error.message || 'No se pudo cambiar el modelo.', true); }
+        } catch (error) { action.disabled = false; notify(error.message || 'Could not change the model.', true); }
       });
       card.append(title, detail, action);
       modelList.append(card);
     }
-  } catch (error) { modelList.textContent = `Error: ${error.message || 'No se pudieron cargar los modelos.'}`; }
+  } catch (error) { modelList.textContent = `Error: ${error.message || 'Could not load models.'}`; }
 }
 
 function showReindex() {
@@ -415,16 +451,63 @@ function showReindex() {
   reindexWrap.hidden = !changed;
 }
 
+const settingGuidance = {
+  DOCS_DIR: 'Managed by the selected project. Change the project folder instead. The selected folder determines which documents are indexed.',
+  DOCS_EXTENSIONS: 'Comma-separated file extensions to include. Add an extension to index that file type, or remove one to ignore it. Rebuild the index after changing it.',
+  PDF_TO_TEXT_BIN: 'Fallback command for PDFs that PDF.js cannot read. Leave this as pdftotext unless that command is unavailable or you installed a compatible replacement.',
+  CHUNKS_PATH: 'Managed by the selected project. This is the generated chunk file used during indexing, not a document source.',
+  OLLAMA_URL: 'Address of your local Ollama server. Normally leave http://127.0.0.1:11434. A wrong address prevents all model and embedding requests; changing it requires rebuilding.',
+  OLLAMA_EMBED_MODEL: 'Model that converts documents and questions into search vectors. A different model can improve or worsen retrieval, but existing vectors become incompatible, so rebuilding is required.',
+  RAG_CHAT_MODEL: 'Managed by the selected project. Use the Models panel to switch it, which also shows whether the model fits your hardware.',
+  OLLAMA_TEMPERATURE: 'Controls creativity. Lower values, especially 0, make answers more consistent and grounded. Higher values make wording more varied but increase the chance of unsupported answers.',
+  CHROMA_COLLECTION: 'Managed by the selected project. It keeps this project’s vectors separate from every other project.',
+  CHROMA_HOST: 'Address of the local Chroma database. Normally leave localhost. A wrong value prevents document search; changing it requires rebuilding the index.',
+  CHROMA_PORT: 'Port used by the local Chroma database. Normally leave 8000. Change it only if Chroma was deliberately started on another port, then rebuild the index.',
+  CHROMA_SSL: 'Set false for the normal local Chroma server. Set true only when Chroma is explicitly configured with HTTPS; the wrong value prevents connecting.',
+  RAG_INDEX_DIR: 'Managed by the selected project. This folder contains the project’s optimized index and should not be shared between projects.',
+  RAG_TOKENIZER_DIR: 'Keep auto for the bundled compatible tokenizer. Change it only if you prepared a matching tokenizer locally; an incompatible tokenizer can make context limits inaccurate.',
+  RAG_CONTEXT: 'Maximum prompt context, in tokens. Lower values use less memory and are faster but may omit useful evidence. Higher values include more evidence but need more RAM or VRAM.',
+  RAG_TIMEOUT_MS: 'Maximum wait time for one Ollama request, in milliseconds. Lower values fail sooner on slow hardware. Higher values tolerate slower models but make failures take longer to report.',
+  RAG_KEEP_ALIVE: 'How long Ollama keeps a model loaded after an answer. Shorter values free memory sooner but make the next answer start slower. Longer values speed up follow-ups while using memory.',
+  RAG_CANDIDATES: 'How many matching chunks retrieval examines before choosing evidence. Lower values are faster but can miss relevant passages. Higher values search more broadly but take longer.',
+  RAG_RRF_K: 'Controls how strongly the top results are favored when combining keyword and semantic search. Lower values favor the very top hits more. Higher values spread weight more evenly across results.',
+  RAG_CONTEXT_CHUNKS: 'How many best-matching chunks are given to the model. Fewer chunks keep answers focused but may miss context. More chunks add evidence but use more context and can introduce noise.',
+  RAG_NEIGHBORS: 'How many chunks before and after each match are included. Lower values give precise excerpts. Higher values preserve surrounding context but increase prompt size and repetition.',
+  RAG_DIRECT_TOKENS: 'Maximum answer length for Fast mode. Lower values produce shorter, faster answers. Higher values allow more detail but increase response time.',
+  RAG_DEEP_TOKENS: 'Maximum answer length for Deep mode. Lower values keep deep answers concise. Higher values allow more detail but increase response time and model work.',
+  RAG_DECISION_TOKENS: 'Budget for choosing the retrieval strategy. Lower values make this internal step faster but less thorough. Higher values allow more analysis before answering but add latency.',
+  RAG_VALIDATION_TOKENS: 'Budget for checking a draft answer against retrieved evidence. Lower values are faster but perform less checking. Higher values may catch more unsupported claims but take longer.',
+  ASK_PREFERRED_LANGUAGE: 'Language requested for generated answers. Use a language name such as English or Spanish. This changes the answer language, not the language of your documents.',
+  SPLIT_TARGET_CHARS: 'Preferred chunk length. Lower values create smaller, more precise matches but split context more often. Higher values keep more text together but make matches broader. Rebuild required.',
+  SPLIT_MAX_CHARS: 'Absolute maximum chunk length. Lowering it forces long sections to split sooner, which gives more precise retrieval but can separate related ideas. Raising it keeps longer sections together, which preserves context but makes retrieval less precise. Keep it at least as high as the target size. Rebuild required.',
+  SPLIT_OVERLAP_CHARS: 'Text repeated between consecutive chunks. Lower values make a smaller, faster index but can cut context at boundaries. Higher values preserve continuity across boundaries but create more chunks and duplicate text. Rebuild required.',
+  RAG_DEBUG: 'Use 0 in normal use. Set 1 only while troubleshooting. It logs document context and raw model output, which can expose sensitive content in the console.',
+};
+
 function makeSetting(setting) {
   const row = document.createElement('div');
   row.className = 'setting';
+  const heading = document.createElement('div');
+  heading.className = 'setting-heading';
   const label = document.createElement('label');
   label.htmlFor = `setting-${setting.key}`;
   label.textContent = setting.key;
+  const tooltip = document.createElement('button');
+  tooltip.className = 'setting-tooltip-trigger';
+  tooltip.type = 'button';
+  tooltip.textContent = '?';
+  tooltip.setAttribute('aria-label', `Help for ${setting.key}`);
+  tooltip.setAttribute('aria-describedby', 'setting-tooltip');
+  const tooltipText = settingGuidance[setting.key] || setting.description || `Expected value: ${setting.defaultValue}.`;
+  tooltip.addEventListener('pointerenter', () => showSettingTooltip(tooltip, tooltipText));
+  tooltip.addEventListener('pointerleave', hideSettingTooltip);
+  tooltip.addEventListener('focus', () => showSettingTooltip(tooltip, tooltipText));
+  tooltip.addEventListener('blur', hideSettingTooltip);
+  heading.append(label, tooltip);
   const help = document.createElement('small');
   help.textContent = managedSettings.has(setting.key)
-    ? 'Este valor se administra automáticamente para el proyecto.'
-    : setting.description || `Valor predeterminado: ${setting.defaultValue}`;
+    ? 'This value is managed automatically for the project.'
+    : setting.description || `Default value: ${setting.defaultValue}`;
   let control;
   if (setting.type === 'select' || setting.type === 'boolean') {
     control = document.createElement('select');
@@ -441,12 +524,12 @@ function makeSetting(setting) {
   control.disabled = managedSettings.has(setting.key);
   control.addEventListener('input', showReindex);
   control.addEventListener('change', showReindex);
-  row.append(label, control, help);
+  row.append(heading, control, help);
   return row;
 }
 
 async function loadSettings() {
-  settingsList.textContent = 'Cargando ajustes…';
+  settingsList.textContent = 'Loading settings…';
   reindexWrap.hidden = true;
   try {
     const data = await requestJson(`/api/settings?${projectQuery()}`);
@@ -465,28 +548,29 @@ async function loadSettings() {
       }
       groups.get(setting.section).append(makeSetting(setting));
     }
-  } catch (error) { settingsList.textContent = `Error: ${error.message || 'No se pudieron cargar los ajustes.'}`; }
+  } catch (error) { settingsList.textContent = `Error: ${error.message || 'Could not load settings.'}`; }
 }
 
 settingsButton.addEventListener('click', () => { settingsDialog.showModal(); void loadSettings(); });
 closeSettings.addEventListener('click', () => settingsDialog.close());
 settingsDialog.addEventListener('click', event => { if (event.target === settingsDialog) settingsDialog.close(); });
+settingsDialog.addEventListener('close', hideSettingTooltip);
 applySettings.addEventListener('click', async () => {
   const values = {};
   for (const control of settingsList.querySelectorAll('[data-key]')) if (!control.disabled) values[control.dataset.key] = control.value;
   const oldText = applySettings.textContent;
   applySettings.disabled = true;
-  applySettings.textContent = 'Aplicando…';
+  applySettings.textContent = 'Applying…';
   try {
     const data = await requestJson('/api/settings', {
       method: 'POST', headers: maintenanceHeaders,
       body: projectBody({ settings: values, regenerate: !reindexWrap.hidden && reindexSettings.checked }),
     });
-    if (data.reindexRequired && (!reindexSettings.checked || reindexWrap.hidden)) notify('Ajustes aplicados. Regenera el RAG antes de consultar.', false, true);
-    else if (data.summary?.chunks) { pendingChats.delete(activeProject.id); resetChat(); notify(`Ajustes aplicados y RAG regenerado: ${data.summary.chunks} fragmentos.`); }
-    else notify('Ajustes aplicados al proyecto.');
+    if (data.reindexRequired && (!reindexSettings.checked || reindexWrap.hidden)) notify('Settings applied. Regenerate the RAG before asking questions.', false, true);
+    else if (data.summary?.chunks) { pendingChats.delete(activeProject.id); resetChat(); notify(`Settings applied and RAG regenerated: ${data.summary.chunks} chunks.`); }
+    else notify('Settings applied to the project.');
     await loadSettings();
-  } catch (error) { notify(error.message || 'No se pudieron aplicar los ajustes.', true); }
+  } catch (error) { notify(error.message || 'Could not apply settings.', true); }
   finally { applySettings.textContent = oldText; applySettings.disabled = false; }
 });
 
@@ -495,4 +579,4 @@ closeModels.addEventListener('click', () => modelDialog.close());
 modelDialog.addEventListener('click', event => { if (event.target === modelDialog) modelDialog.close(); });
 
 setControlsEnabled(false);
-loadProjects().catch(error => notify(error.message || 'No se pudieron cargar los proyectos.', true));
+loadProjects().catch(error => notify(error.message || 'Could not load projects.', true));

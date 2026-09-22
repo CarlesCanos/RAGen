@@ -1,11 +1,11 @@
 <!doctype html>
-<html lang="es">
+<html lang="en">
 
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="color-scheme" content="dark">
-  <title>Local RAG</title>
+  <title>RAGen</title>
   <style nonce="__NONCE__">
     /*__STYLES__*/
   </style>
@@ -16,15 +16,15 @@
     <aside class="projects-panel">
       <div class="projects-head">
         <div>
-          <div class="eyebrow">Local RAG</div>
-          <h1>Proyectos</h1>
+          <div class="eyebrow">RAGen</div>
+          <h1>Projects</h1>
         </div>
-        <button class="icon-button" id="add-project" type="button" title="Añadir proyecto"
-          aria-label="Añadir proyecto">+</button>
+        <button class="icon-button" id="add-project" type="button" title="Add project"
+          aria-label="Add project">+</button>
       </div>
-      <nav class="project-list" id="project-list" aria-label="Proyectos"></nav>
-      <div class="project-empty" id="project-empty" hidden>No hay proyectos disponibles.</div>
-      <div class="project-panel-footer">Cada proyecto mantiene su propio índice, modelo y ajustes.</div>
+      <nav class="project-list" id="project-list" aria-label="Projects"></nav>
+      <div class="project-empty" id="project-empty" hidden>No available projects.</div>
+      <div class="project-panel-footer">Each project keeps its own index, model, and settings.</div>
     </aside>
 
     <main class="shell">
@@ -32,16 +32,16 @@
         <div class="brand">
           <div class="mark">R</div>
           <div>
-            <h2 id="active-project-name">Cargando proyecto…</h2>
-            <div class="subtitle" id="active-project-path">Tus documentos, en tu equipo</div>
+            <h2 id="active-project-name">Loading project…</h2>
+            <div class="subtitle" id="active-project-path">Your documents, on your computer</div>
           </div>
         </div>
         <div class="header-tools">
-          <button class="tool" id="documents" type="button">Documentos</button>
-          <button class="tool danger" id="clear-conversation" type="button">Borrar conversación</button>
-          <button class="tool" id="settings" type="button">Ajustes</button>
-          <button class="tool primary" id="regenerate" type="button">Regenerar RAG</button>
-          <button class="model model-button" id="models" type="button" title="Cambiar modelo">
+          <button class="tool" id="documents" type="button">Documents</button>
+          <button class="tool danger" id="clear-conversation" type="button">Clear conversation</button>
+          <button class="tool" id="settings" type="button">Settings</button>
+          <button class="tool primary" id="regenerate" type="button">Regenerate RAG</button>
+          <button class="model model-button" id="models" type="button" title="Change model">
             <span class="dot"></span><span id="model-name">__MODEL__</span>
           </button>
         </div>
@@ -53,12 +53,12 @@
         <div class="modal">
           <div class="modal-head">
             <div>
-              <h2>Modelos locales</h2>
-              <div class="modal-copy">La selección se guarda solo para el proyecto activo.</div>
+              <h2>Local models</h2>
+              <div class="modal-copy">The selection is saved only for the active project.</div>
             </div>
-            <button class="close" id="close-models" type="button" aria-label="Cerrar">×</button>
+            <button class="close" id="close-models" type="button" aria-label="Close">×</button>
           </div>
-          <div class="hardware" id="hardware">Detectando hardware…</div>
+          <div class="hardware" id="hardware">Detecting hardware…</div>
           <div class="model-list" id="model-list"></div>
         </div>
       </dialog>
@@ -67,38 +67,37 @@
         <div class="modal">
           <div class="modal-head">
             <div>
-              <h2>Ajustes del proyecto</h2>
-              <div class="modal-copy">Los cambios se aplican únicamente al proyecto activo. La carpeta y el modelo se
-                administran desde la barra lateral y la cabecera.</div>
+              <h2>Project settings</h2>
+              <div class="modal-copy">Changes apply only to the active project. Manage the folder and model from the
+                sidebar and header.</div>
             </div>
-            <button class="close" id="close-settings" type="button" aria-label="Cerrar">×</button>
+            <button class="close" id="close-settings" type="button" aria-label="Close">×</button>
           </div>
-          <div class="settings-list" id="settings-list">Cargando ajustes…</div>
+          <div class="settings-list" id="settings-list">Loading settings…</div>
           <div class="settings-actions">
             <label class="check" id="reindex-wrap" hidden><input id="reindex-settings" type="checkbox"
-                checked><span>Regenerar ahora el índice si he modificado un ajuste que afecta a documentos, fragmentos o
+                checked><span>Regenerate the index now if I changed a setting that affects documents, chunks, or
                 embeddings.</span></label>
-            <button class="apply" id="apply-settings" type="button">Aplicar ajustes</button>
+            <button class="apply" id="apply-settings" type="button">Apply settings</button>
           </div>
         </div>
       </dialog>
 
       <section id="messages" aria-live="polite">
-        <div class="welcome" id="welcome"><strong>¿Qué quieres consultar?</strong>Pregunta sobre los documentos del
-          proyecto seleccionado.</div>
+        <div class="welcome" id="welcome"><strong>What would you like to know?</strong>Ask about the selected
+          project's documents.</div>
       </section>
 
       <form id="chat-form">
-        <select id="mode" aria-label="Modo">
+        <select id="mode" aria-label="Mode">
           <option value="auto">Auto</option>
-          <option value="fast">Rápido</option>
-          <option value="deep">Profundo</option>
+          <option value="fast">Fast</option>
+          <option value="deep">Deep</option>
         </select>
-        <textarea id="question" rows="1" maxlength="4000" placeholder="Escribe una pregunta…" required
+        <textarea id="question" rows="1" maxlength="4000" placeholder="Ask a question…" required
           autofocus></textarea>
-        <button id="send" type="submit" aria-label="Enviar">➤</button>
-        <div class="hint">Enter para enviar · Mayús+Enter para nueva línea · Cada proyecto mantiene su propio contexto
-          documental</div>
+        <button id="send" type="submit" aria-label="Send">➤</button>
+        <div class="hint">Enter to send · Shift+Enter for a new line · Each project keeps its own document context</div>
       </form>
     </main>
   </div>

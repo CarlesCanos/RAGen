@@ -72,16 +72,16 @@ export class SettingsService {
     const current = await this.list(options.values); const allowed = new Map(current.map(setting => [setting.key, setting]));
     const updates = new Map<string, string>();
     for (const [key, raw] of Object.entries(input)) {
-      const setting = allowed.get(key); if (!setting || typeof raw !== 'string') throw new Error(`Ajuste no válido: ${key}`);
-      const value = raw.trim(); if (value.includes('\n') || value.includes('\r')) throw new Error(`El ajuste ${key} no puede contener saltos de línea.`);
-      if (setting.type === 'number' && (!value || !Number.isFinite(Number(value)))) throw new Error(`${key} debe ser un número válido.`);
-      if (setting.type === 'boolean' && !['true', 'false'].includes(value.toLowerCase())) throw new Error(`${key} debe ser true o false.`);
-      if (setting.options && !setting.options.includes(value)) throw new Error(`${key} tiene un valor no permitido.`);
-      if (key === 'CHROMA_HOST' && !isLoopbackHost(value)) throw new Error('CHROMA_HOST debe ser localhost o una dirección de loopback.');
-      if (key === 'OLLAMA_URL' && !isLoopbackHttpUrl(value)) throw new Error('OLLAMA_URL debe ser una URL HTTP local.');
+      const setting = allowed.get(key); if (!setting || typeof raw !== 'string') throw new Error(`Invalid setting: ${key}`);
+      const value = raw.trim(); if (value.includes('\n') || value.includes('\r')) throw new Error(`Setting ${key} cannot contain line breaks.`);
+      if (setting.type === 'number' && (!value || !Number.isFinite(Number(value)))) throw new Error(`${key} must be a valid number.`);
+      if (setting.type === 'boolean' && !['true', 'false'].includes(value.toLowerCase())) throw new Error(`${key} must be true or false.`);
+      if (setting.options && !setting.options.includes(value)) throw new Error(`${key} has a disallowed value.`);
+      if (key === 'CHROMA_HOST' && !isLoopbackHost(value)) throw new Error('CHROMA_HOST must be localhost or a loopback address.');
+      if (key === 'OLLAMA_URL' && !isLoopbackHttpUrl(value)) throw new Error('OLLAMA_URL must be a local HTTP URL.');
       updates.set(key, value);
     }
-    if (!updates.size) throw new Error('No se recibieron ajustes.');
+    if (!updates.size) throw new Error('No settings were provided.');
     const normalized = Object.fromEntries(updates);
     const result = { reindexRequired: [...updates.keys()].some(key => reindexKeys.has(key)), values: normalized };
     if (options.persist === false) return result;

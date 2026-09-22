@@ -4,7 +4,6 @@ import type { ProjectEnv } from "./types/env.types.ts";
 
 let cachedEnv: ProjectEnv | null = null;
 
-/** Clears the derived environment after the local settings screen applies changes. */
 export function resetProjectEnvCache(): void {
   cachedEnv = null;
 }

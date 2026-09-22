@@ -25,10 +25,10 @@ test('Hono chat renders SSR safely and exposes local health', async () => {
   assert.match(page.headers.get('content-type') ?? '', /text\/html/);
   assert.match(page.headers.get('content-security-policy') ?? '', /default-src 'self'/);
   const html = await page.text();
-  assert.match(html, /Local RAG/);
+  assert.match(html, /RAGen/);
   assert.match(html, /id="project-list"/);
-  assert.match(html, /Documentos/);
-  assert.match(html, /Regenerar RAG/);
+  assert.match(html, /Documents/);
+  assert.match(html, /Regenerate RAG/);
   assert.doesNotMatch(html, /__(?:NONCE|STYLES|SCRIPT|MODEL)__/);
   const health = await app.request('/api/health');
   assert.equal(health.status, 200);
@@ -108,8 +108,8 @@ test('model manager routes list, install and select without rebuilding the RAG',
     current: () => selected,
     async list() { return { current: selected, hardware: { gpu: 'GPU', vramBytes: 8e9, ramBytes: 16e9, detection: 'test' }, models: [] }; },
     async select(name) { selected = name; return selected; },
-    async install(name) { return { model: name, state: 'downloading', percent: 0, status: 'Inicio' }; },
-    installStatus(name) { return { model: name, state: 'complete', percent: 100, status: 'Instalado' }; },
+    async install(name) { return { model: name, state: 'downloading', percent: 0, status: 'Starting download' }; },
+    installStatus(name) { return { model: name, state: 'complete', percent: 100, status: 'Installed' }; },
   };
   const maintenance: Maintenance = { openDocuments() {}, async regenerate() { return {}; } };
   const app = createApp(async () => result, maintenance, models);
@@ -218,7 +218,7 @@ test('project conversations retain only the latest 20 messages', () => {
 
 test('project storage rejects identifiers that could escape the runtime folder', () => {
   const project: Project = { id: '../outside', name: 'Invalid', docsPath: fixtureDocsPath, model: 'qwen3.5:2b-q4_K_M', settings: {}, createdAt: new Date(0).toISOString() };
-  assert.throws(() => projectFiles(project), /Identificador de proyecto no válido/);
+  assert.throws(() => projectFiles(project), /Invalid project identifier/);
 });
 
 test('a project reports an in-progress answer until it is persisted', async () => {
@@ -240,6 +240,11 @@ test('a project reports an in-progress answer until it is persisted', async () =
     body: JSON.stringify({ projectId: project.id, question: '¿Sigue pensando?', mode: 'auto' }),
   });
   await started;
+  const concurrent = await app.request('/api/ask', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ projectId: project.id, question: 'Second question', mode: 'auto' }),
+  });
+  assert.equal(concurrent.status, 409);
   const during = await (await app.request(`/api/projects/${project.id}/messages`)).json() as { pending: Array<{ question: string }>; messages: ConversationMessage[] };
   assert.equal(during.messages.length, 0);
   assert.equal(during.pending[0].question, '¿Sigue pensando?');

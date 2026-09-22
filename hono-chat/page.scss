@@ -25,12 +25,16 @@ body {
     font: 15px/1.55 Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
     color: var(--text);
     background: radial-gradient(circle at 15% 0%, #13243b 0, transparent 38%), var(--bg);
+    overflow: hidden;
 }
 
 .app-layout {
     height: 100%;
+    min-height: 0;
     display: grid;
     grid-template-columns: 280px minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr);
+    overflow: hidden;
 }
 
 .projects-panel {
@@ -41,6 +45,7 @@ body {
     border-right: 1px solid var(--line);
     background: #0b111bcc;
     backdrop-filter: blur(16px);
+    overflow: hidden;
 }
 
 .projects-head {
@@ -73,6 +78,7 @@ body {
 }
 
 .project-list {
+    flex: 1 1 auto;
     min-height: 0;
     display: grid;
     align-content: start;
@@ -84,18 +90,19 @@ body {
     display: grid;
     grid-template-columns: minmax(0, 1fr) auto;
     align-items: center;
-    border: 1px solid transparent;
+    border: 1px solid hsl(var(--project-hue, 160) 38% 28% / .55);
     border-radius: 13px;
+    background: hsl(var(--project-hue, 160) 32% 15% / .78);
 }
 
 .project-row:hover,
 .project-row.active {
-    border-color: var(--line);
-    background: #131e2d;
+    border-color: hsl(var(--project-hue, 160) 48% 42% / .8);
+    background: hsl(var(--project-hue, 160) 36% 20% / .9);
 }
 
 .project-row.active {
-    box-shadow: inset 3px 0 var(--accent);
+    box-shadow: inset 3px 0 hsl(var(--project-hue, 160) 70% 62%);
 }
 
 .project-select {
@@ -117,8 +124,8 @@ body {
     display: grid;
     place-items: center;
     border-radius: 9px;
-    color: #bff6e5;
-    background: #163229;
+    color: hsl(var(--project-hue, 160) 82% 90%);
+    background: hsl(var(--project-hue, 160) 50% 29%);
 }
 
 .project-copy {
@@ -164,13 +171,15 @@ body {
 
 .shell {
     height: 100%;
+    min-height: 0;
     min-width: 0;
     width: min(100%, 1080px);
     margin: 0 auto;
     display: grid;
-    grid-template-rows: auto 1fr auto;
+    grid-template-rows: auto minmax(0, 1fr) auto;
     padding: 18px;
-    gap: 14px
+    gap: 14px;
+    overflow: hidden
 }
 
 header {
@@ -288,6 +297,17 @@ header {
     color: var(--accent);
     font-weight: 800;
     font-size: 12px
+}
+
+.assistant-name {
+    flex: 0 1 auto;
+    width: auto;
+    min-width: 30px;
+    max-width: min(220px, 35vw);
+    padding: 0 9px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap
 }
 
 .bubble {
@@ -698,10 +718,57 @@ button:disabled {
     border-top: 0
 }
 
-.setting label {
+.setting-heading {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    min-width: 0
+}
+
+.setting-heading label {
     font-size: 12px;
     font-weight: 700;
     overflow-wrap: anywhere
+}
+
+.setting-tooltip-trigger {
+    position: relative;
+    flex: 0 0 auto;
+    min-width: 18px;
+    width: 18px;
+    height: 18px;
+    padding: 0;
+    border: 1px solid #526783;
+    border-radius: 50%;
+    color: #b9c9dd;
+    background: #172131;
+    font-size: 11px;
+    line-height: 1;
+    font-weight: 800
+}
+
+.setting-tooltip-trigger:hover,
+.setting-tooltip-trigger:focus-visible {
+    border-color: var(--accent2);
+    color: var(--text);
+    background: #213149
+}
+
+.setting-tooltip {
+    position: fixed;
+    z-index: 100;
+    padding: 9px 10px;
+    border: 1px solid #415776;
+    border-radius: 9px;
+    color: #d9e5f5;
+    background: #0a111d;
+    box-shadow: 0 10px 28px #0009;
+    font-size: 11px;
+    font-weight: 500;
+    line-height: 1.45;
+    text-align: left;
+    white-space: normal;
+    pointer-events: none;
 }
 
 .setting small {
@@ -774,8 +841,10 @@ button:disabled {
     }
 
     .project-list {
+        flex: 0 1 auto;
         display: flex;
         overflow-x: auto;
+        overflow-y: hidden;
     }
 
     .project-row {
