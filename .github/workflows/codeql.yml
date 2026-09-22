@@ -19,6 +19,10 @@ permissions:
 jobs:
   analyze:
     name: Analyze JavaScript and TypeScript
+    # Code scanning is available on this account once the repository is public.
+    # Keep private-repository pushes green; the same workflow activates after
+    # the visibility change and can then be started with workflow_dispatch.
+    if: github.event.repository.private == false
     runs-on: ubuntu-latest
     timeout-minutes: 15
 
