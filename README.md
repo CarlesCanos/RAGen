@@ -41,8 +41,9 @@ Chroma and Ollama are restricted to loopback connections. The app listens on loo
 default. It has no authentication and must not be exposed to a network without additional
 security.
 
-The launcher uses Chroma's Rust server through `chroma run`. The private Python
-environment isolates dependencies, but it is not an operating system security sandbox.
+The launcher downloads Chroma's official standalone Rust executable into
+`rag/.runtime/`, verifies its pinned SHA-256, and runs it only on loopback. Python is not
+required for Chroma.
 
 Do not enable `RAG_DEBUG=1` for sensitive documents. Debug logs can contain document
 text and raw model output.

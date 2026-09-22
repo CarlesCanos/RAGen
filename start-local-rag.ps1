@@ -171,53 +171,33 @@ function Ensure-NodeDependencies {
   Write-Host '      Dependencias npm instaladas.' -ForegroundColor Green
 }
 
-function Find-Python {
-  $known = @(
-    (Join-Path $env:LOCALAPPDATA 'Programs\Python\Python312\python.exe'),
-    (Join-Path $env:LOCALAPPDATA 'Programs\Python\Python311\python.exe'),
-    (Join-Path $env:LOCALAPPDATA 'Programs\Python\Python310\python.exe'),
-    (Join-Path $env:ProgramFiles 'Python312\python.exe')
-  )
-  $candidates = @((Find-Application 'python.exe' $known)) + $known
-  foreach ($candidate in ($candidates | Where-Object { $_ } | Select-Object -Unique)) {
-    if (-not (Test-Path -LiteralPath $candidate -PathType Leaf)) { continue }
-    $version = (& $candidate --version 2>&1 | Select-Object -First 1)
-    if ($LASTEXITCODE -eq 0 -and $version -match '^Python (\d+)\.(\d+)') {
-      if ([int]$Matches[1] -eq 3 -and [int]$Matches[2] -ge 10 -and [int]$Matches[2] -le 12) { return $candidate }
-    }
-  }
-  return $null
-}
-
 function Ensure-ChromaRuntime {
-  $venvRoot = Join-Path $runtimeRoot 'chroma-venv'
-  $venvPython = Join-Path $venvRoot 'Scripts\python.exe'
-  $chroma = Join-Path $venvRoot 'Scripts\chroma.exe'
-  $requirements = Join-Path $ragRoot 'requirements-chroma.lock.txt'
-  $marker = Join-Path $venvRoot '.requirements.sha256'
-  $requirementsHash = (Get-FileHash -Algorithm SHA256 -LiteralPath $requirements).Hash
-  $installedHash = if (Test-Path -LiteralPath $marker) { (Get-Content -LiteralPath $marker -Raw).Trim() } else { '' }
-  if ((Test-Path -LiteralPath $venvPython) -and (Test-Path -LiteralPath $chroma) -and $installedHash -eq $requirementsHash) {
-    return $chroma
+  $chromaVersion = 'cli-1.4.4'
+  $expectedHash = '8697d3f5f55c4f982c6e114ac01cf006daa0c68d87e791d9b5558b8670f89d05'
+  $downloadUrl = "https://github.com/chroma-core/chroma/releases/download/$chromaVersion/chroma-windows.exe"
+  $chromaRoot = Join-Path $runtimeRoot 'chroma'
+  $chroma = Join-Path $chromaRoot 'chroma-windows.exe'
+
+  if (Test-Path -LiteralPath $chroma -PathType Leaf) {
+    $installedHash = (Get-FileHash -Algorithm SHA256 -LiteralPath $chroma).Hash.ToLowerInvariant()
+    if ($installedHash -eq $expectedHash) { return $chroma }
   }
   if ($SkipInstall) { throw 'El runtime local de Chroma no esta preparado y la instalacion automatica esta desactivada (-SkipInstall).' }
-  $python = Find-Python
-  if (-not $python) {
-    Install-WingetPackage -Id 'Python.Python.3.12' -DisplayName 'Python 3.12'
-    $python = Find-Python
+
+  Write-Host "      Descargando Chroma $chromaVersion desde GitHub..." -ForegroundColor Yellow
+  New-Item -ItemType Directory -Force -Path $chromaRoot | Out-Null
+  $temporaryFile = Join-Path $chromaRoot ("chroma-windows.exe.download-" + [guid]::NewGuid().ToString('N'))
+  try {
+    Invoke-WebRequest -UseBasicParsing -Uri $downloadUrl -OutFile $temporaryFile
+    $downloadedHash = (Get-FileHash -Algorithm SHA256 -LiteralPath $temporaryFile).Hash.ToLowerInvariant()
+    if ($downloadedHash -ne $expectedHash) {
+      throw "La descarga de Chroma no coincide con el SHA-256 esperado. Esperado: $expectedHash; recibido: $downloadedHash."
+    }
+    Move-Item -LiteralPath $temporaryFile -Destination $chroma -Force
+  } finally {
+    if (Test-Path -LiteralPath $temporaryFile) { Remove-Item -LiteralPath $temporaryFile -Force }
   }
-  if (-not $python) { throw 'Python se instalo, pero python.exe no se encuentra. Reinicia Windows y vuelve a intentarlo.' }
-  if (-not (Test-Path -LiteralPath $venvPython)) {
-    Write-Host '      Creando el entorno Python privado de Chroma...' -ForegroundColor Yellow
-    New-Item -ItemType Directory -Force -Path $runtimeRoot | Out-Null
-    & $python -m venv $venvRoot | Out-Host
-    if ($LASTEXITCODE -ne 0) { throw "No se pudo crear el entorno virtual de Chroma (codigo $LASTEXITCODE)." }
-  }
-  Write-Host '      Instalando Chroma en el entorno privado del proyecto...' -ForegroundColor Yellow
-  & $venvPython -m pip install --disable-pip-version-check --no-input --require-hashes -r $requirements | Out-Host
-  if ($LASTEXITCODE -ne 0) { throw "No se pudo instalar Chroma (codigo $LASTEXITCODE)." }
-  Set-Content -LiteralPath $marker -Value $requirementsHash -Encoding ASCII
-  if (-not (Test-Path -LiteralPath $chroma)) { throw 'Chroma se instalo, pero no se genero chroma.exe.' }
+  Write-Host '      Chroma descargado y verificado.' -ForegroundColor Green
   return $chroma
 }
 
@@ -360,10 +340,9 @@ try {
   if (-not (Test-Endpoint "$chromaUrl/api/v2/heartbeat")) {
     $chroma = Ensure-ChromaRuntime
     $chromaData = Join-Path $ragRoot '.chroma'
-    # `chroma run` is the Rust server; the vulnerable Python/FastAPI backend is not used.
     $chromaProcess = Start-TrackedProcess -FilePath $chroma -ArgumentList @('run', '--path', "`"$chromaData`"", '--host', $chromaHost, '--port', "$chromaPort") -WorkingDirectory $ragRoot
     Wait-Endpoint -Uri "$chromaUrl/api/v2/heartbeat" -Service 'Chroma' -Seconds 60 -Process $chromaProcess
-    Write-Host '      Chroma Rust iniciado en loopback desde el entorno privado.' -ForegroundColor Green
+    Write-Host '      Chroma Rust iniciado en loopback.' -ForegroundColor Green
   } else { Write-Host '      Chroma ya estaba disponible.' -ForegroundColor DarkGreen }
 
   Write-Step 5 'Validando el indice RAG...'

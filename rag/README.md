@@ -6,9 +6,9 @@ grounded answers with a Qwen 3.5 model served by Ollama.
 
 ## Setup
 
-The recommended setup is `../START-RAG.cmd`. It creates the private Chroma runtime,
-installs locked dependencies, starts local services, downloads required models, and
-prepares the first index.
+The recommended setup is `../START-RAG.cmd`. It downloads and verifies the standalone
+Chroma runtime, installs locked dependencies, starts local services, downloads required
+models, and prepares the first index.
 
 Manual commands from the repository root:
 
@@ -75,22 +75,12 @@ removed with the project. Source documents are never removed.
 `RAG_DEBUG=1` logs document context and raw model output. Do not use it with sensitive
 documents or shared logs.
 
-## Chroma dependencies
+## Chroma runtime
 
-`requirements-chroma.txt` contains the direct requirement.
-`requirements-chroma.lock.txt` pins the full dependency tree with hashes.
-
-```powershell
-rag\.runtime\chroma-venv\Scripts\python.exe -m piptools compile --generate-hashes --allow-unsafe --resolver=backtracking --output-file rag\requirements-chroma.lock.txt rag\requirements-chroma.txt
-```
-
-The launcher restricts Chroma and Ollama to loopback. It uses the default Rust server
-through `chroma run`, not Chroma's Python FastAPI backend. The
-[upstream report](https://github.com/chroma-core/chroma/issues/6717) explains this
-distinction. Python vulnerability scanners still flag the installed `chromadb` package
-because it also contains that unused backend. No patched package is currently available.
-The private environment isolates Python dependencies, but does not restrict process
-access to the Windows file system.
+The launcher downloads the official standalone Windows executable from Chroma's GitHub
+release into `rag/.runtime/chroma/`. Its version and SHA-256 are pinned in
+`../start-local-rag.ps1`, and the launcher verifies the file before every start. Chroma
+and Ollama are restricted to loopback connections.
 
 See [FLOW.md](FLOW.md), [OPTIMIZATION.md](OPTIMIZATION.md), and
 [EVALUATION.md](EVALUATION.md) for implementation details.
