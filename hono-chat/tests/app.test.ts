@@ -10,6 +10,7 @@ import type { Settings } from '../app.ts';
 import { latestMessages, projectFiles } from '../projects.ts';
 import type { ConversationMessage, Project, ProjectService } from '../projects.ts';
 import { SettingsService } from '../settings.ts';
+import { OllamaError } from '../../rag/src/optimized/ollama.ts';
 
 const result: AskResult = {
   answer: 'Respuesta local [doc:1]', status: 'answered',
@@ -17,6 +18,13 @@ const result: AskResult = {
   metrics: { cacheHit: false, totalMs: 1234, searches: [], stages: [], model: 'digest', index: 'snapshot' },
 };
 const fixtureDocsPath = path.resolve('tests', 'fixtures', 'docs');
+
+test('chat returns actionable Ollama errors without exposing raw diagnostics', async () => {
+  const app = createApp(async () => { throw new OllamaError('private diagnostic', 'timeout', 'Increase RAG_TIMEOUT_MS in Settings.'); });
+  const response = await app.request('/api/ask', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ question: 'What is RAGen?' }) });
+  assert.equal(response.status, 503);
+  assert.deepEqual(await response.json(), { error: 'Increase RAG_TIMEOUT_MS in Settings.' });
+});
 
 test('Hono chat renders SSR safely and exposes local health', async () => {
   const app = createApp(async () => result);

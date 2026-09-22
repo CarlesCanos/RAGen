@@ -6,6 +6,8 @@ import { fileURLToPath } from 'node:url';
 import { Hono, type MiddlewareHandler } from 'hono';
 import { bodyLimit } from 'hono/body-limit';
 import { askRag } from '../rag/src/optimized/ask.ts';
+import { OllamaError } from '../rag/src/optimized/ollama.ts';
+import { errorDetails, trace } from '../rag/src/shared/diagnostics.ts';
 import type { AskOptions, AskResult } from '../rag/src/optimized/ask.ts';
 import { renderChatPage } from './page.ts';
 import { localModels } from './models.ts';
@@ -307,7 +309,8 @@ export function createApp(runAsk: Ask = askRag, maintenance: Maintenance = local
       }
     } catch (error) {
       console.error('[hono-chat]', error);
-      return c.json({ error: 'Could not query the local RAG. Check Ollama, Chroma, and the index.' }, 503);
+      await trace('http.ask.error', { projectId: input.projectId, error: errorDetails(error) });
+      return c.json({ error: error instanceof OllamaError ? error.publicMessage : 'Could not query the local RAG. Check the server console for details.' }, 503);
     }
   });
 

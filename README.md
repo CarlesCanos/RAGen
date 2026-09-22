@@ -19,6 +19,8 @@ Installer with `winget`.
 The first start installs missing tools, downloads the required local models and runtime,
 then prepares the initial index. Later starts reuse them.
 
+![RAGen workflow: launching START-RAG.cmd, opening the local interface, and sending the first question](assets/ragen-workflow.gif)
+
 ## Use
 
 1. Create a project and choose its document folder.
@@ -35,6 +37,33 @@ a project removes only RAGen’s generated local data, never the original docume
 Answers run one at a time because every project shares the same local model and hardware.
 You can switch projects while an answer is running, but wait for it to finish before
 asking another question.
+
+If Ollama runs out of GPU memory, RAGen retries that model on the CPU for the
+current question. This can be slower. Close GPU-heavy applications or select a
+smaller model to reduce memory pressure. If a request times out, increase
+`RAG_TIMEOUT_MS` in the project's **Settings**. Ollama failures now show a specific
+error in the chat; full diagnostic details are saved in the local logs.
+
+## Troubleshooting logs
+
+Logs are saved as `rag/.runtime/logs/rag-<pid>.jsonl` (one JSON event per line).
+They include request IDs, model settings, generation timings, token counts, errors
+with stack traces, and CPU fallback attempts. Memory snapshots include Node memory,
+system RAM, and NVIDIA GPU memory/utilization when `nvidia-smi` is available. During
+inference, memory is sampled every second; very short spikes may still be missed.
+
+For full questions, retrieved context, exact Ollama prompts, and raw model responses,
+set **RAG_DEBUG** to `1` in the project's **Settings**, then repeat the question.
+Set it back to `0` afterward. Debug logs contain your document content. Logs stay
+local and are excluded from Git. Each process keeps a roughly 5 MiB current file
+and one rotated `.jsonl.1` file; files from older runs remain until you remove them.
+
+To follow the newest log from the repository root:
+
+```powershell
+$ragLog = Get-ChildItem .\rag\.runtime\logs\*.jsonl | Sort-Object LastWriteTime -Descending | Select-Object -First 1
+Get-Content -LiteralPath $ragLog.FullName -Tail 30 -Wait
+```
 
 ## Settings
 
@@ -59,10 +88,17 @@ Chroma uses its official standalone Windows executable. The launcher downloads i
 `rag/.runtime/`, verifies its pinned SHA-256, and starts it on loopback only. Python is
 not required for Chroma.
 
-Keep `RAG_DEBUG=0` for normal use. Debug mode can write document context and raw model
-output to the console.
+Keep `RAG_DEBUG=0` for normal use. Debug mode saves document context and raw model
+output in the diagnostic logs, which remain after removing a project.
 
-Press Enter in the launcher window to stop the processes it started.
+Press Enter in the launcher window to stop the processes it started, including
+their child processes such as Ollama model workers. Services that were already
+running before the launcher started are left running.
+
+On startup, the launcher also removes leftover workers from the same Ollama
+installation when their parent process has exited. Workers with a live parent
+are kept. If Windows prevents inspecting or stopping a worker, the launcher
+prints a warning and continues.
 
 ## Development
 

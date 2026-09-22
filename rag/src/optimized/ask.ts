@@ -10,6 +10,7 @@ import type { RetrievalMetric } from './retrieve.ts';
 import { fuse } from './bm25.ts';
 import { atomicJson, hash, optionalJson, readJson } from './storage.ts';
 import { loadCounter } from './tokens.ts';
+import { debugEnabled, errorDetails, trace, withDiagnostics } from '../shared/diagnostics.ts';
 
 const PROMPT_VERSION = 'general-rag-v2.9';
 export const NO_INFORMATION = 'No information about this topic was found in the documents.';
@@ -55,6 +56,26 @@ export function parseAnswer(content: string, chunks: DocumentChunk[]): { answer:
   return { answer: `${answer.trim()}${!inline.length && parsed.sufficient ? ' ' + [...new Set(explicit)].map(id => `[${id}]`).join(' ') : ''}`, sufficient: parsed.sufficient };
 }
 export async function askRag(rawQuestion: string, options: AskOptions = {}): Promise<AskResult> {
+  const cfg = { ...config(), ...options.config };
+  return withDiagnostics(cfg.debug, async () => {
+    const start = performance.now();
+    await trace('query.start', { model: cfg.model, mode: options.mode ?? 'auto', indexRoot: cfg.root,
+      context: cfg.context, timeoutMs: cfg.timeout, debug: cfg.debug,
+      questionChars: rawQuestion.length, ...(debugEnabled() ? { question: rawQuestion } : {}) }, true);
+    try {
+      const result = await runQuery(rawQuestion, { ...options, config: cfg });
+      await trace('query.end', { status: result.status, metrics: { ...result.metrics,
+        searches: result.metrics.searches.map(({ query, ...search }) => ({ ...search, ...(debugEnabled() ? { query } : {}) })) },
+        ...(debugEnabled() ? { answer: result.answer, sources: result.sources } : {}) }, true);
+      return result;
+    } catch (error) {
+      await trace('query.error', { elapsedMs: performance.now() - start, error: errorDetails(error) }, true);
+      throw error;
+    }
+  });
+}
+
+async function runQuery(rawQuestion: string, options: AskOptions): Promise<AskResult> {
   const start = performance.now();
   const cfg = { ...config(), ...options.config };
   const question = rawQuestion.normalize('NFC').replace(/\s+/g, ' ').trim();
@@ -123,7 +144,8 @@ export async function askRag(rawQuestion: string, options: AskOptions = {}): Pro
   let status: AskResult['status'] = 'insufficient';
   let candidate: string | undefined;
   const generate = async () => {
-    if (process.env.RAG_DEBUG === '1') console.error(JSON.stringify({ context: chunks.map(c => ({ id: c.id, text: c.text })), estimatedPromptTokens: counter.chat(system, promptFor(chunks), deep) }));
+    await trace('query.context', { chunkIds: chunks.map(c => c.id), estimatedPromptTokens: counter.chat(system, promptFor(chunks), deep),
+      ...(debugEnabled() ? { context: chunks.map(c => ({ id: c.id, text: c.text })) } : {}) });
     let prompt = promptFor(chunks);
     let outputBudget = deep ? cfg.deepTokens : cfg.directTokens;
     if (deep) {

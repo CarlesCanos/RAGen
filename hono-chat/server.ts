@@ -6,6 +6,7 @@ import { fileURLToPath } from 'node:url';
 const here = path.dirname(fileURLToPath(import.meta.url));
 process.chdir(path.resolve(here, '../rag'));
 const { app } = await import('./app.ts');
+const { diagnosticsFile } = await import('../rag/src/shared/diagnostics.ts');
 
 const hostname = process.env.RAG_UI_HOST?.trim() || '127.0.0.1';
 const rawPort = Number(process.env.RAG_UI_PORT || 8787);
@@ -13,6 +14,7 @@ if (!Number.isInteger(rawPort) || rawPort < 1 || rawPort > 65535) throw new Erro
 
 const server = serve({ fetch: app.fetch, hostname, port: rawPort }, info => {
   console.log(`Local RAG Chat: http://${hostname}:${info.port}`);
+  console.log(`Diagnostic log: ${diagnosticsFile}`);
   console.log('Press Ctrl+C to stop it.');
 });
 

@@ -72,8 +72,12 @@ Each project stores its chunks, caches, snapshots, collection details, and conve
 under `rag/.runtime/projects/<id>/`. This content is plain text, excluded from Git, and
 removed with the project. Source documents are never removed.
 
-`RAG_DEBUG=1` logs document context and raw model output. Do not use it with sensitive
-documents or shared logs.
+Diagnostic JSONL files live in `.runtime/logs/rag-<pid>.jsonl`. They record memory,
+timings, request IDs and errors, with GPU samples every second during inference.
+`RAG_DEBUG=1` also saves full prompts, document context and raw model output. The UI
+applies this setting per project. Logs persist independently of project deletion;
+each process rotates its file at roughly 5 MiB and keeps one previous file.
+See the root README for instructions to follow a log.
 
 ## Chroma runtime
 

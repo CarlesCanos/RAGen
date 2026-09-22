@@ -114,9 +114,52 @@ function Stop-StartedProcesses {
   for ($index = $startedProcesses.Count - 1; $index -ge 0; $index--) {
     $process = $startedProcesses[$index]
     try {
-      if (-not $process.HasExited) { Stop-Process -Id $process.Id -ErrorAction Stop }
+      if (-not $process.HasExited) {
+        # Stop the tracked process tree, including Ollama's model workers. Killing
+        # only ollama.exe leaves llama-server.exe holding RAM and GPU allocations.
+        # Use the tracked PID, never an image-name match: pre-existing services
+        # and other applications are not owned by this launcher.
+        $taskKill = Join-Path $env:SystemRoot 'System32\taskkill.exe'
+        $stopOutput = & $taskKill /PID "$($process.Id)" /T /F 2>&1
+        $stopExitCode = $LASTEXITCODE
+        if ($stopExitCode -ne 0 -and -not $process.HasExited) {
+          throw "Could not stop process tree $($process.Id): $($stopOutput -join ' ')"
+        }
+        if (-not $process.WaitForExit(5000)) { throw "Process $($process.Id) did not exit after cleanup." }
+      }
     } catch { Write-Host "Warning while stopping process $($process.Id): $($_.Exception.Message)" -ForegroundColor Yellow }
   }
+}
+
+function Stop-OrphanedOllamaWorkers {
+  param([Parameter(Mandatory)][string]$Ollama)
+  $workerPath = Join-Path (Split-Path -Parent $Ollama) 'lib\ollama\llama-server.exe'
+  try {
+    $workers = @(Get-CimInstance -ClassName Win32_Process -Filter "Name = 'llama-server.exe'" -ErrorAction Stop)
+  } catch {
+    Write-Host "      Could not check for leftover Ollama workers: $($_.Exception.Message)" -ForegroundColor Yellow
+    return
+  }
+  $stopped = 0
+  foreach ($worker in $workers) {
+    try {
+      $process = Get-Process -Id $worker.ProcessId -ErrorAction SilentlyContinue
+      if (-not $process -or $process.Path -ne $workerPath) { continue }
+      # Match both path and creation time against the snapshot to guard PID reuse.
+      # CIM creation times have lower precision than the process handle's time.
+      if ([math]::Abs(($process.StartTime.ToUniversalTime() - $worker.CreationDate.ToUniversalTime()).TotalMilliseconds) -gt 1) { continue }
+      $parent = Get-Process -Id $worker.ParentProcessId -ErrorAction SilentlyContinue
+      # A live, older parent still owns this worker. A newer parent means Windows
+      # reused the old parent's PID; it is not the worker's actual parent.
+      if ($parent -and $parent.StartTime -le $process.StartTime) { continue }
+      Stop-Process -InputObject $process -ErrorAction Stop
+      if (-not $process.WaitForExit(5000)) { throw "Worker $($process.Id) did not exit." }
+      $stopped++
+    } catch {
+      Write-Host "      Could not clean up Ollama worker $($worker.ProcessId): $($_.Exception.Message)" -ForegroundColor Yellow
+    }
+  }
+  if ($stopped) { Write-Host "      Released $stopped leftover Ollama worker(s)." -ForegroundColor Green }
 }
 
 function Ensure-Node {
@@ -322,6 +365,7 @@ try {
   }
   Write-Step 3 'Checking Ollama and local models...'
   $ollama = Ensure-Ollama -OllamaUrl $ollamaUrl
+  Stop-OrphanedOllamaWorkers -Ollama $ollama
   $chatModel = Get-ProjectSetting 'RAG_CHAT_MODEL' 'qwen3.5:4b-q4_K_M'
   $embedModel = Get-ProjectSetting 'OLLAMA_EMBED_MODEL' 'embeddinggemma'
   Ensure-OllamaModel -Ollama $ollama -OllamaUrl $ollamaUrl -Model $chatModel

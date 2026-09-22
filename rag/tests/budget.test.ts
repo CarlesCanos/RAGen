@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { config } from '../src/optimized/config.ts';
-import { chat } from '../src/optimized/ollama.ts';
+import { chat, OllamaError } from '../src/optimized/ollama.ts';
 import { selectContext } from '../src/optimized/retrieve.ts';
 import { buildBm25 } from '../src/optimized/bm25.ts';
 import { enrich } from '../src/optimized/index.ts';
@@ -54,7 +54,13 @@ test('transport applies a deadline, context/output budgets and never retries a t
       assert.ok(init?.signal);
       throw new DOMException('timeout', 'TimeoutError');
     };
-    await assert.rejects(chat({ ...config(), timeout: 20 }, 'plan', '', '', 256, false, [], true), { name: 'TimeoutError' });
+    await assert.rejects(chat({ ...config(), timeout: 20 }, 'plan', '', '', 256, false, [], true), (error: unknown) => {
+      assert.ok(error instanceof OllamaError);
+      assert.equal(error.code, 'timeout');
+      assert.ok(error.cause instanceof Error);
+      assert.equal(error.cause.name, 'TimeoutError');
+      return true;
+    });
     assert.equal(calls, 1);
   } finally { globalThis.fetch = original; }
 });

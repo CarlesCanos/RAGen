@@ -481,7 +481,7 @@ const settingGuidance = {
   SPLIT_TARGET_CHARS: 'Preferred chunk length. Lower values create smaller, more precise matches but split context more often. Higher values keep more text together but make matches broader. Rebuild required.',
   SPLIT_MAX_CHARS: 'Absolute maximum chunk length. Lowering it forces long sections to split sooner, which gives more precise retrieval but can separate related ideas. Raising it keeps longer sections together, which preserves context but makes retrieval less precise. Keep it at least as high as the target size. Rebuild required.',
   SPLIT_OVERLAP_CHARS: 'Text repeated between consecutive chunks. Lower values make a smaller, faster index but can cut context at boundaries. Higher values preserve continuity across boundaries but create more chunks and duplicate text. Rebuild required.',
-  RAG_DEBUG: 'Use 0 in normal use. Set 1 only while troubleshooting. It logs document context and raw model output, which can expose sensitive content in the console.',
+  RAG_DEBUG: 'Use 0 for memory, timing and error logs. Set 1 to also save full questions, document prompts and raw model responses in rag/.runtime/logs/. These files contain document content.',
 };
 
 function makeSetting(setting) {

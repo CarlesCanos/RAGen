@@ -148,6 +148,7 @@ export function projectRagConfig(project: Project): Partial<Config> {
     chunks: integer('RAG_CONTEXT_CHUNKS', base.chunks),
     neighbors: integer('RAG_NEIGHBORS', base.neighbors, 0),
     keepAlive: env.RAG_KEEP_ALIVE?.trim() || base.keepAlive,
+    debug: env.RAG_DEBUG === '1',
     temperature: number('OLLAMA_TEMPERATURE', base.temperature),
     directTokens: integer('RAG_DIRECT_TOKENS', base.directTokens),
     deepTokens: integer('RAG_DEEP_TOKENS', base.deepTokens),
