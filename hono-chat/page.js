@@ -264,7 +264,12 @@ function message(role, text, sources = [], meta = null) {
   }
   const bubble = document.createElement('div');
   bubble.className = 'bubble';
-  bubble.textContent = text;
+  if (role === 'assistant' && !text.startsWith('Error: ')) {
+    bubble.classList.add('markdown');
+    bubble.append(renderMarkdown(text));
+  } else {
+    bubble.textContent = text;
+  }
   if (sources.length) {
     const list = document.createElement('details');
     list.className = 'sources';

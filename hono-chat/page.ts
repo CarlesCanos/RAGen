@@ -10,7 +10,7 @@ interface PageOptions {
 const directory = path.dirname(fileURLToPath(import.meta.url));
 const template = readFileSync(path.join(directory, 'page.html'), 'utf8');
 const styles = readFileSync(path.join(directory, 'page.scss'), 'utf8');
-const script = readFileSync(path.join(directory, 'page.js'), 'utf8');
+const script = readFileSync(path.join(directory, 'markdown.js'), 'utf8') + '\n' + readFileSync(path.join(directory, 'page.js'), 'utf8');
 
 function escapeHtml(value: string): string {
   return value.replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[char]!);
@@ -19,7 +19,7 @@ function escapeHtml(value: string): string {
 export function renderChatPage({ model, nonce }: PageOptions): string {
   return template
     .replaceAll('__NONCE__', escapeHtml(nonce))
-    .replace('/*__STYLES__*/', styles)
-    .replace('/*__SCRIPT__*/', script)
+    .replace('/*__STYLES__*/', () => styles)
+    .replace('/*__SCRIPT__*/', () => script)
     .replace('__MODEL__', escapeHtml(model));
 }

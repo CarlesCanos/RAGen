@@ -77,6 +77,10 @@ test('example-independent evidence keeps identity and only accepts real citation
   assert.equal(parseAnswer(JSON.stringify({ answer: `Supported [${chunks[0].id}]`, sufficient: true }), chunks).sufficient, true);
   const wrapped = '```json\n' + JSON.stringify({ answer: `Supported [chunk-id: ${chunks[0].id}]`, sufficient: true, citations: [chunks[0].id] }) + '\n```';
   assert.equal(parseAnswer(wrapped, chunks).answer, `Supported [${chunks[0].id}]`);
+  const plainList = `- First [chunk-id=${chunks[0].id}]\\n- Second [chunk-id]${chunks[0].id}[/chunk-id]`;
+  assert.equal(parseAnswer(plainList, chunks).answer, `- First [${chunks[0].id}]\n- Second [${chunks[0].id}]`);
+  assert.throws(() => parseAnswer('- Invented [chunk-id=missing]', chunks));
+  assert.throws(() => parseAnswer('{"answer":', chunks));
   assert.throws(() => parseAnswer(JSON.stringify({ answer: 'Invented [chunk-id: missing]', sufficient: true }), chunks));
   assert.throws(() => parseModelJson('untrusted preamble {"queries":[]}'));
   assert.deepEqual(parseModelJson('```json\n{"queries":[]}\n```'), { queries: [] });
