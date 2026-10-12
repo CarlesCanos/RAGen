@@ -275,12 +275,14 @@ async function addNewProject() {
   try {
     const selection = await requestJson('/api/folders/select', { method: 'POST', headers: maintenanceHeaders, body: '{}' });
     if (selection.cancelled) return;
-    const suggestedName = selection.path.split(/[\\/]/).filter(Boolean).at(-1) || 'New project';
+    const folderPath = selection.manualEntry ? prompt('Absolute path to the documents folder:')?.trim() : selection.path;
+    if (!folderPath) return;
+    const suggestedName = folderPath.split(/[\\/]/).filter(Boolean).at(-1) || 'New project';
     const name = prompt('Project name:', suggestedName)?.trim();
     if (!name) return;
     const data = await requestJson('/api/projects', {
       method: 'POST', headers: maintenanceHeaders,
-      body: JSON.stringify({ name, docsPath: selection.path }),
+      body: JSON.stringify({ name, docsPath: folderPath }),
     });
     await loadProjects(data.project.id);
     notify(`Project “${data.project.name}” created. Select Regenerate RAG to build its index.`);

@@ -1,11 +1,16 @@
 # Hono Chat
 
 The local web interface for the RAG engine in `../rag/`. Start it from the repository
-root with `START-RAG.cmd`, or run only the interface with:
+root with `START-RAG.cmd` on Windows or `bash START-RAG.sh` on Linux. To run only
+the interface on Windows:
 
 ```powershell
 npm.cmd run chat
 ```
+
+On Linux, run `npm run chat`. The folder picker uses Zenity or KDialog when present;
+without either, the chat asks for an absolute folder path. The Documents button uses
+the Linux default file manager through `xdg-open`.
 
 The server listens on `http://127.0.0.1:8787` by default. It has no authentication and is
 intended for local use only.

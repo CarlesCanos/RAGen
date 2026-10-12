@@ -195,7 +195,7 @@ function Ensure-NodeDependencies {
   param([Parameter(Mandatory)][string]$Npm)
   $lockFile = Join-Path $repoRoot 'package-lock.json'
   $markerFile = Join-Path $repoRoot 'node_modules\.ragen-lock.sha256'
-  $lockHash = (Get-FileHash -Algorithm SHA256 -LiteralPath $lockFile).Hash
+  $lockHash = 'windows-' + $env:PROCESSOR_ARCHITECTURE + ':' + (Get-FileHash -Algorithm SHA256 -LiteralPath $lockFile).Hash
   $installedHash = if (Test-Path -LiteralPath $markerFile) { (Get-Content -LiteralPath $markerFile -Raw).Trim() } else { '' }
   $honoModule = Join-Path $repoRoot 'node_modules\hono\package.json'
   $chromaModule = Join-Path $repoRoot 'node_modules\chromadb\package.json'

@@ -6,11 +6,13 @@ grounded answers with a Qwen 3.5 model served by Ollama.
 
 ## Setup
 
-The recommended setup is `../START-RAG.cmd`. It downloads and verifies the standalone
-Chroma runtime, installs locked dependencies, starts local services, downloads required
-models, and prepares the first index.
+The recommended setup is `../START-RAG.cmd` on Windows or `bash ../START-RAG.sh` on
+Linux. It downloads and verifies the standalone Chroma runtime, installs locked
+dependencies, starts local services, downloads required models, and prepares the first
+index.
 
-Manual commands from the repository root:
+Manual commands from the repository root on Windows (use `npm` instead of `npm.cmd`
+on Linux):
 
 ```powershell
 npm.cmd ci
@@ -81,10 +83,11 @@ See the root README for instructions to follow a log.
 
 ## Chroma runtime
 
-The launcher downloads the official standalone Windows executable from Chroma's GitHub
-release into `rag/.runtime/chroma/`. Its version and SHA-256 are pinned in
-`../start-local-rag.ps1`, and the launcher verifies the file before every start. Chroma
-and Ollama are restricted to loopback connections.
+The launcher downloads the official standalone executable for Windows or Linux from
+Chroma's GitHub release into `rag/.runtime/chroma/`. Its version and SHA-256 are pinned
+in the platform launcher (`../start-local-rag.ps1` or `../start-local-rag.sh`), and the
+launcher verifies the file before every start. The bundled Linux binary is x86_64.
+Chroma and Ollama are restricted to loopback connections.
 
 See [FLOW.md](FLOW.md), [OPTIMIZATION.md](OPTIMIZATION.md), and
 [EVALUATION.md](EVALUATION.md) for implementation details.

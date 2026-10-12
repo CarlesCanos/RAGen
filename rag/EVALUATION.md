@@ -6,7 +6,7 @@ replace testing with documents that represent real use.
 
 ## Commands
 
-Run from `rag/`:
+Run from `rag/` on Windows. On Linux, use `npm` in place of `npm.cmd`:
 
 ```powershell
 npm.cmd run evaluate -- --size 2000 --lexical-only
