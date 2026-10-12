@@ -1,7 +1,7 @@
 # Contributing
 
 Thanks for helping improve RAGen Local. Keep changes focused, local-first, and easy to
-run on Windows and Linux. By participating, you agree to follow the
+run on Windows and native Linux. By participating, you agree to follow the
 [Code of Conduct](CODE_OF_CONDUCT.md).
 
 ## Development setup

@@ -3,13 +3,13 @@
 [![CI](https://github.com/CarlesCanos/RAGen/actions/workflows/ci.yml/badge.svg)](https://github.com/CarlesCanos/RAGen/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-A small local-first RAG for Windows and Linux. Choose one or more document folders,
+A small local-first RAG for Windows and native Linux. Choose one or more document folders,
 build an independent RAG project for each one, and ask questions through a local web interface.
 Answers are generated locally with Ollama, Qwen, EmbeddingGemma, and Chroma.
 
 ## Quick start
 
-Requirements: Windows 10 or 11 with App Installer (`winget`), or 64-bit x86 Linux
+Requirements: Windows 10 or 11 with App Installer (`winget`), or native x86_64 Linux
 (such as Ubuntu) with `bash`, `curl`, `tar`, `sha256sum`, and `setsid`. An internet
 connection is needed for the first setup. Linux ARM64 can run the app with an
 existing Chroma server, but the bundled Chroma download is currently x86_64 only.
@@ -23,6 +23,8 @@ The first start installs missing tools, downloads the required local models and 
 then prepares the initial index. Later starts reuse them. Linux may request your sudo
 password while installing `zstd` and Ollama. Close RAGen by pressing Enter in the
 launcher terminal.
+
+### Optional: WSL2 on a Windows computer
 
 On Windows with WSL, use WSL2. Check with `wsl --list --verbose` in PowerShell; if
 Ubuntu is on version 1, convert it with `wsl --set-version Ubuntu 2` before running
@@ -102,9 +104,9 @@ The launchers use loopback addresses by default. The app has no authentication, 
 not expose it to your network or the internet without adding authentication and network
 protections. Configure any pre-existing Ollama or Chroma service for local access too.
 
-Chroma uses its official standalone Windows or Linux executable. The launcher downloads
-the matching executable into `rag/.runtime/`, verifies its pinned SHA-256, and starts
-it on loopback only. Python is not required for Chroma.
+Chroma uses its official standalone Windows or x86_64 Linux executable. The launcher
+downloads the matching executable into `rag/.runtime/`, verifies its pinned SHA-256,
+and starts it on loopback only. Python is not required for Chroma.
 
 Keep `RAG_DEBUG=0` for normal use. Debug mode saves document context and raw model
 output in the diagnostic logs, which remain after removing a project.

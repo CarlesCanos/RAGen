@@ -7,7 +7,7 @@ grounded answers with a Qwen 3.5 model served by Ollama.
 ## Setup
 
 The recommended setup is `../START-RAG.cmd` on Windows or `bash ../START-RAG.sh` on
-Linux. It downloads and verifies the standalone Chroma runtime, installs locked
+native x86_64 Linux. It downloads and verifies the standalone Chroma runtime, installs locked
 dependencies, starts local services, downloads required models, and prepares the first
 index.
 
