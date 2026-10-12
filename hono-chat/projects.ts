@@ -5,6 +5,8 @@ import { fileURLToPath } from 'node:url';
 import { config } from '../rag/src/optimized/config.ts';
 import type { Config } from '../rag/src/optimized/config.ts';
 import { getProjectEnv } from '../rag/src/env.ts';
+import { defaultAppearance, parseAppearance } from './appearance.ts';
+import type { Appearance } from './appearance.ts';
 
 const ragRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../rag');
 const runtimeRoot = path.join(ragRoot, '.runtime');
@@ -21,6 +23,7 @@ export interface Project {
   docsPath: string;
   model: string;
   settings: Record<string, string>;
+  appearance: Appearance;
   createdAt: string;
 }
 
@@ -53,7 +56,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 function validateProject(value: unknown, index: number): Project {
   if (!isRecord(value)) throw new Error(`Project ${index + 1} is not a valid object.`);
-  const { id, name, docsPath, model, settings, createdAt } = value;
+  const { id, name, docsPath, model, settings, appearance, createdAt } = value;
   if (typeof id !== 'string' || !projectIdPattern.test(id)) throw new Error(`Project ${index + 1} has an invalid identifier.`);
   if (typeof name !== 'string' || !name.trim() || name.length > 80) throw new Error(`Project ${id} has an invalid name.`);
   if (typeof docsPath !== 'string' || !path.isAbsolute(docsPath)) throw new Error(`Project ${id} has an invalid documents path.`);
@@ -67,7 +70,8 @@ function validateProject(value: unknown, index: number): Project {
     validatedSettings[key] = settingValue;
   }
   if (typeof createdAt !== 'string' || Number.isNaN(Date.parse(createdAt))) throw new Error(`Project ${id} has an invalid date.`);
-  return { id, name: name.trim(), docsPath, model: model.trim(), settings: validatedSettings, createdAt };
+  return { id, name: name.trim(), docsPath, model: model.trim(), settings: validatedSettings,
+    appearance: appearance === undefined ? { ...defaultAppearance } : parseAppearance(appearance), createdAt };
 }
 
 function assertProjectId(id: string): void {
@@ -81,13 +85,14 @@ export interface ProjectService {
   remove(id: string): Promise<void>;
   setModel(id: string, model: string): Promise<Project>;
   setSettings(id: string, settings: Record<string, string>): Promise<Project>;
+  setAppearance(id: string, appearance: Appearance): Promise<Project>;
   getMessages?(id: string): Promise<ConversationMessage[]>;
   addMessages?(id: string, messages: Array<Omit<ConversationMessage, 'id' | 'createdAt'>>): Promise<ConversationMessage[]>;
   clearMessages?(id: string): Promise<void>;
 }
 
 function safeProject(project: Project): Project {
-  return { ...project, settings: { ...project.settings } };
+  return { ...project, settings: { ...project.settings }, appearance: { ...project.appearance } };
 }
 
 export function projectFiles(project: Project) {
@@ -189,6 +194,7 @@ export class LocalProjectService implements ProjectService {
         docsPath: path.resolve(ragRoot, env.docsDir),
         model: config().model,
         settings: {},
+        appearance: { ...defaultAppearance },
         createdAt: new Date().toISOString(),
       }];
       await this.save(initial);
@@ -222,7 +228,7 @@ export class LocalProjectService implements ProjectService {
     if (!(await stat(docsPath).catch(() => undefined))?.isDirectory()) throw new Error('The documents folder does not exist or cannot be accessed.');
     return this.mutate(async () => {
       const projects = await this.load();
-      const project: Project = { id: randomUUID(), name, docsPath, model: config().model, settings: {}, createdAt: new Date().toISOString() };
+      const project: Project = { id: randomUUID(), name, docsPath, model: config().model, settings: {}, appearance: { ...defaultAppearance }, createdAt: new Date().toISOString() };
       const next = [...projects, project];
       await this.save(next);
       this.projects = next;
@@ -264,6 +270,19 @@ export class LocalProjectService implements ProjectService {
       const project = projects.find(item => item.id === id);
       if (!project) throw new Error('Project not found.');
       const updated = { ...project, settings: { ...project.settings, ...settings } };
+      const next = projects.map(item => item.id === id ? updated : item);
+      await this.save(next);
+      this.projects = next;
+      return safeProject(updated);
+    });
+  }
+
+  async setAppearance(id: string, appearance: Appearance) {
+    return this.mutate(async () => {
+      const projects = await this.load();
+      const project = projects.find(item => item.id === id);
+      if (!project) throw new Error('Project not found.');
+      const updated = { ...project, appearance: parseAppearance(appearance) };
       const next = projects.map(item => item.id === id ? updated : item);
       await this.save(next);
       this.projects = next;
