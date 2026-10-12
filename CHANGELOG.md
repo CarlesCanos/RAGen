@@ -2,6 +2,19 @@
 
 All notable changes to RAGen are documented in this file.
 
+## [1.1.0] - 2026-10-12
+
+### Highlights
+
+- Split project settings into Technical and Visual tabs.
+- Added per-project controls for the chat background, user and agent bubbles,
+  chat text, agent name, font size, line spacing, character spacing, and extra
+  spacing after line breaks.
+- Added live previews and a way to restore the default appearance. Visual
+  preferences are stored with each project's local data and do not rebuild the
+  RAG index. Existing projects use the default appearance until customized.
+- Updated dependencies and the CI setup action since v1.0.0.
+
 ## [1.0.0] - 2026-09-22
 
 First stable release.
@@ -23,4 +36,5 @@ First stable release.
 - Automated Windows CI, CodeQL scanning, Dependabot updates, secret scanning, and
   push protection.
 
+[1.1.0]: https://github.com/CarlesCanos/RAGen/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/CarlesCanos/RAGen/releases/tag/v1.0.0
