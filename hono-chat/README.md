@@ -1,7 +1,7 @@
 # Hono Chat
 
 The local web interface for the RAG engine in `../rag/`. Start it from the repository
-root with `START-RAG.cmd` on Windows or `bash START-RAG.sh` on Linux. To run only
+root with `START-RAG.cmd` on Windows or `bash START-RAG.sh` on native Linux. To run only
 the interface on Windows:
 
 ```powershell

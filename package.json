@@ -1,7 +1,7 @@
 {
   "name": "ragen-local",
   "version": "1.2.0",
-  "description": "A lightweight, no-Docker local RAG for Windows and Linux using Ollama and Chroma.",
+  "description": "A lightweight, no-Docker local RAG for Windows and native Linux using Ollama and Chroma.",
   "license": "MIT",
   "author": "Carles Canos",
   "private": true,
