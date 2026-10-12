@@ -61,9 +61,12 @@ function renderMarkdown(text) {
 
   function paragraph(content, parent = fragment) {
     const element = document.createElement('p');
-    content.forEach((line, lineIndex) => {
-      if (lineIndex) element.append(document.createElement('br'));
-      inline(line, element);
+    content.forEach(line => {
+      const span = document.createElement('span');
+      span.className = 'chat-line';
+      if (line) inline(line, span);
+      else span.textContent = '\u00a0';
+      element.append(span);
     });
     parent.append(element);
   }

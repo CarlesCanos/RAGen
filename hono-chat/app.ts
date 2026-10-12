@@ -15,6 +15,7 @@ import type { ModelService } from './models.ts';
 import { localSettings } from './settings.ts';
 import { localProjects, projectEnvironment, projectRagConfig } from './projects.ts';
 import type { Project, ProjectService } from './projects.ts';
+import { parseAppearance } from './appearance.ts';
 
 type Ask = (question: string, options?: AskOptions) => Promise<AskResult>;
 export interface Maintenance {
@@ -130,6 +131,16 @@ export function createApp(runAsk: Ask = askRag, maintenance: Maintenance = local
     if (!body || typeof body.name !== 'string' || typeof body.docsPath !== 'string') return c.json({ error: 'A name and folder are required.' }, 400);
     try { return c.json({ project: await projects.create({ name: body.name, docsPath: body.docsPath }) }, 201); }
     catch (error) { return c.json({ error: (error as Error).message }, 400); }
+  });
+
+  app.post('/api/projects/:id/appearance', async c => {
+    if (c.req.header('X-Local-RAG') !== '1') return c.json({ error: 'Invalid local request.' }, 403);
+    const body = await c.req.json<{ appearance?: unknown }>().catch(() => undefined);
+    try {
+      const appearance = parseAppearance(body?.appearance);
+      const project = await projects.setAppearance(c.req.param('id'), appearance);
+      return c.json({ appearance: project.appearance });
+    } catch (error) { return c.json({ error: (error as Error).message }, 400); }
   });
 
   app.delete('/api/projects/:id', async c => {

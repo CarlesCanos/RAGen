@@ -9,6 +9,13 @@
     --accent2: #6fa8ff;
     --user: #254b72;
     --bot: #172131;
+    --chat-bg: #0c121d;
+    --chat-text: #edf3fc;
+    --agent-name: #65d6b4;
+    --chat-line-height: 1.55;
+    --chat-break-spacing: 0px;
+    --chat-letter-spacing: 0px;
+    --chat-font-size: 15px;
 }
 
 * {
@@ -257,7 +264,7 @@ header {
     scroll-behavior: smooth;
     border: 1px solid var(--line);
     border-radius: 20px;
-    background: #0c121dcc;
+    background: var(--chat-bg);
     box-shadow: 0 20px 70px #0007;
     padding: 24px
 }
@@ -310,19 +317,27 @@ header {
     white-space: nowrap
 }
 
+#messages .assistant-name {
+    color: var(--agent-name)
+}
+
 .bubble {
     max-width: min(760px, 85%);
     padding: 12px 15px;
     border-radius: 16px;
     background: var(--bot);
-    border: 1px solid #25344a;
+    color: var(--chat-text);
+    font-size: var(--chat-font-size);
+    line-height: var(--chat-line-height);
+    letter-spacing: var(--chat-letter-spacing);
+    border: 1px solid color-mix(in srgb, var(--bot), white 15%);
     white-space: pre-wrap;
     overflow-wrap: anywhere
 }
 
 .user .bubble {
     background: var(--user);
-    border-color: #35628f;
+    border-color: color-mix(in srgb, var(--user), white 15%);
     border-bottom-right-radius: 5px
 }
 
@@ -334,6 +349,9 @@ header {
     white-space: normal
 }
 
+.chat-line { display: block }
+.chat-line + .chat-line { margin-top: var(--chat-break-spacing) }
+
 .markdown > :first-child {
     margin-top: 0
 }
@@ -343,7 +361,7 @@ header {
 }
 
 .markdown p, .markdown ul, .markdown ol, .markdown blockquote, .markdown pre {
-    margin: 0 0 0.85em
+    margin: 0 0 calc(0.85em + var(--chat-break-spacing))
 }
 
 .markdown h1, .markdown h2, .markdown h3, .markdown h4, .markdown h5, .markdown h6 {
@@ -356,7 +374,7 @@ header {
 }
 
 .markdown li + li {
-    margin-top: 0.35em
+    margin-top: calc(0.35em + var(--chat-break-spacing))
 }
 
 .markdown a {
@@ -391,7 +409,7 @@ header {
 .markdown blockquote {
     padding-left: 0.85em;
     border-left: 3px solid #58718d;
-    color: #b6c5d9
+    color: inherit
 }
 
 .sources {
@@ -500,6 +518,13 @@ textarea {
     background: transparent;
     padding: 9px 4px;
     line-height: 1.45
+}
+
+#question {
+    color: var(--chat-text);
+    font-size: var(--chat-font-size);
+    line-height: var(--chat-line-height);
+    letter-spacing: var(--chat-letter-spacing);
 }
 
 textarea::placeholder {
@@ -757,6 +782,87 @@ button:disabled {
     padding-right: 3px
 }
 
+.settings-tabs {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 14px;
+    border-bottom: 1px solid var(--line)
+}
+
+.settings-tab {
+    min-width: 0;
+    height: 38px;
+    padding: 0 16px;
+    border-radius: 9px 9px 0 0;
+    color: var(--muted);
+    background: transparent;
+    font-size: 13px
+}
+
+.settings-tab[aria-selected="true"] {
+    color: var(--text);
+    background: #1d2b3e;
+    box-shadow: inset 0 -2px var(--accent)
+}
+
+.settings-tab:focus-visible {
+    outline: 2px solid var(--accent2);
+    outline-offset: -2px
+}
+
+.visual-settings {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+    max-height: 53vh;
+    overflow: auto
+}
+
+.visual-setting {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    min-width: 0;
+    padding: 12px;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    background: #111a28;
+    font-size: 12px;
+    font-weight: 700
+}
+
+.visual-setting input[type="color"] {
+    flex: 0 0 52px;
+    width: 52px;
+    height: 34px;
+    padding: 3px;
+    border: 1px solid #526783;
+    border-radius: 8px;
+    background: #0b111b;
+    cursor: pointer
+}
+
+.visual-number {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    color: var(--muted);
+    font-size: 11px
+}
+
+.visual-number input {
+    width: 72px;
+    padding: 7px;
+    border: 1px solid #526783;
+    border-radius: 8px;
+    color: var(--text);
+    background: #0b111b;
+    font: inherit
+}
+
+.visual-actions { justify-content: flex-end }
+
 .settings-section {
     border: 1px solid var(--line);
     border-radius: 12px;
@@ -921,6 +1027,7 @@ button:disabled {
 }
 
 @media(max-width:620px) {
+    .visual-settings { grid-template-columns: 1fr }
     .shell {
         padding: 10px
     }
@@ -943,9 +1050,8 @@ button:disabled {
         padding: 14px
     }
 
-    .avatar {
-        display: none
-    }
+    .message.assistant { flex-direction: column }
+    #messages .assistant-name { max-width: 92%; font-size: 11px }
 
     .bubble {
         max-width: 92%

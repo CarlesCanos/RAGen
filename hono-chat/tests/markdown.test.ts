@@ -48,3 +48,10 @@ test('renders fenced code literally', () => {
   assert.equal(descendants(result, 'script').length, 0);
   assert.equal(descendants(result, 'code')[0].text, '<script>alert(1)</script>');
 });
+
+test('keeps explicit line breaks separate from paragraph spacing', () => {
+  const result = renderMarkdown('First line\nSecond line\n\nNext paragraph');
+  assert.equal(descendants(result, 'p').length, 2);
+  assert.equal(descendants(result, 'span').length, 3);
+  assert.equal(descendants(result, 'br').length, 0);
+});

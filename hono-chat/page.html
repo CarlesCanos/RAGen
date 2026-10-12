@@ -68,17 +68,39 @@
           <div class="modal-head">
             <div>
               <h2>Project settings</h2>
-              <div class="modal-copy">Changes apply only to the active project. Manage the folder and model from the
-                sidebar and header.</div>
+              <div class="modal-copy">Changes apply only to the active project.</div>
             </div>
             <button class="close" id="close-settings" type="button" aria-label="Close">×</button>
           </div>
-          <div class="settings-list" id="settings-list">Loading settings…</div>
-          <div class="settings-actions">
-            <label class="check" id="reindex-wrap" hidden><input id="reindex-settings" type="checkbox"
-                checked><span>Regenerate the index now if I changed a setting that affects documents, chunks, or
-                embeddings.</span></label>
-            <button class="apply" id="apply-settings" type="button">Apply settings</button>
+          <div class="settings-tabs" role="tablist" aria-label="Settings category">
+            <button class="settings-tab" id="technical-tab" type="button" role="tab" aria-controls="technical-panel" aria-selected="true">Technical</button>
+            <button class="settings-tab" id="visual-tab" type="button" role="tab" aria-controls="visual-panel" aria-selected="false" tabindex="-1">Visual</button>
+          </div>
+          <div id="technical-panel" role="tabpanel" aria-labelledby="technical-tab">
+            <div class="settings-list" id="settings-list">Loading settings…</div>
+            <div class="settings-actions">
+              <label class="check" id="reindex-wrap" hidden><input id="reindex-settings" type="checkbox"
+                  checked><span>Regenerate the index now if I changed a setting that affects documents, chunks, or
+                  embeddings.</span></label>
+              <button class="apply" id="apply-settings" type="button">Apply technical settings</button>
+            </div>
+          </div>
+          <div id="visual-panel" role="tabpanel" aria-labelledby="visual-tab" hidden>
+            <div class="visual-settings">
+              <label class="visual-setting" for="visual-chat-background"><span>Chat background</span><input id="visual-chat-background" data-appearance="chatBackground" type="color" value="#0c121d"></label>
+              <label class="visual-setting" for="visual-user-bubble"><span>Your bubble</span><input id="visual-user-bubble" data-appearance="userBubble" type="color" value="#254b72"></label>
+              <label class="visual-setting" for="visual-agent-bubble"><span>Agent bubble</span><input id="visual-agent-bubble" data-appearance="agentBubble" type="color" value="#172131"></label>
+              <label class="visual-setting" for="visual-text-color"><span>Chat text</span><input id="visual-text-color" data-appearance="textColor" type="color" value="#edf3fc"></label>
+              <label class="visual-setting" for="visual-agent-name"><span>Agent name</span><input id="visual-agent-name" data-appearance="agentNameColor" type="color" value="#65d6b4"></label>
+              <label class="visual-setting" for="visual-line-height"><span>Line spacing</span><span class="visual-number"><input id="visual-line-height" data-appearance="lineHeight" type="number" min="1.2" max="2.2" step="0.05" value="1.55"><span>×</span></span></label>
+              <label class="visual-setting" for="visual-line-break-spacing"><span>Space after line break</span><span class="visual-number"><input id="visual-line-break-spacing" data-appearance="lineBreakSpacing" type="number" min="0" max="24" step="1" value="0"><span>px</span></span></label>
+              <label class="visual-setting" for="visual-letter-spacing"><span>Character spacing</span><span class="visual-number"><input id="visual-letter-spacing" data-appearance="letterSpacing" type="number" min="0" max="3" step="0.1" value="0"><span>px</span></span></label>
+              <label class="visual-setting" for="visual-font-size"><span>Font size</span><span class="visual-number"><input id="visual-font-size" data-appearance="fontSize" type="number" min="12" max="24" step="1" value="15"><span>px</span></span></label>
+            </div>
+            <div class="settings-actions visual-actions">
+              <button class="tool" id="reset-appearance" type="button">Restore defaults</button>
+              <button class="apply" id="apply-appearance" type="button">Save visual settings</button>
+            </div>
           </div>
         </div>
       </dialog>

@@ -11,6 +11,7 @@ import { latestMessages, projectFiles } from '../projects.ts';
 import type { ConversationMessage, Project, ProjectService } from '../projects.ts';
 import { SettingsService } from '../settings.ts';
 import { OllamaError } from '../../rag/src/optimized/ollama.ts';
+import { defaultAppearance, parseAppearance } from '../appearance.ts';
 
 const result: AskResult = {
   answer: 'Respuesta local [doc:1]', status: 'answered',
@@ -37,6 +38,10 @@ test('Hono chat renders SSR safely and exposes local health', async () => {
   assert.match(html, /id="project-list"/);
   assert.match(html, /Documents/);
   assert.match(html, /Regenerate RAG/);
+  assert.match(html, /id="technical-tab"/);
+  assert.match(html, /id="visual-tab"/);
+  assert.match(html, /data-appearance="fontSize"/);
+  assert.match(html, /data-appearance="lineBreakSpacing"/);
   assert.doesNotMatch(html, /__(?:NONCE|STYLES|SCRIPT|MODEL)__/);
   const health = await app.request('/api/health');
   assert.equal(health.status, 200);
@@ -165,7 +170,7 @@ test('settings reject non-loopback local-service endpoints', async () => {
 test('project routes isolate model, settings, index and maintenance context', async () => {
   const project: Project = {
     id: 'project-one', name: 'Manual', docsPath: fixtureDocsPath, model: 'qwen3.5:2b-q4_K_M',
-    settings: { RAG_CONTEXT: '8192' }, createdAt: new Date(0).toISOString(),
+    settings: { RAG_CONTEXT: '8192' }, appearance: { ...defaultAppearance }, createdAt: new Date(0).toISOString(),
   };
   let storedMessages: ConversationMessage[] = [];
   const projectService: ProjectService = {
@@ -175,6 +180,7 @@ test('project routes isolate model, settings, index and maintenance context', as
     async remove() {},
     async setModel(_id, model) { project.model = model; return project; },
     async setSettings(_id, values) { project.settings = { ...project.settings, ...values }; return project; },
+    async setAppearance(_id, appearance) { project.appearance = appearance; return project; },
     async getMessages() { return storedMessages; },
     async addMessages(_id, messages) {
       storedMessages = latestMessages([...storedMessages, ...messages.map((message, index) => ({ ...message, id: String(index), createdAt: new Date(0).toISOString() }))]);
@@ -184,9 +190,10 @@ test('project routes isolate model, settings, index and maintenance context', as
   };
   let askedConfig: AskOptions['config'];
   let regeneratedProject: Project | undefined;
+  let regenerationCount = 0;
   const maintenance: Maintenance = {
     openDocuments(received) { regeneratedProject = received; },
-    async regenerate(received) { regeneratedProject = received; return { chunks: 3 }; },
+    async regenerate(received) { regeneratedProject = received; regenerationCount++; return { chunks: 3 }; },
   };
   const models: ModelService = {
     current: () => 'test-model',
@@ -218,6 +225,31 @@ test('project routes isolate model, settings, index and maintenance context', as
   assert.equal(storedMessages.length, 0);
   await app.request('/api/models/select', { method: 'POST', headers, body: JSON.stringify({ projectId: project.id, model: 'qwen3.5:9b-q4_K_M' }) });
   assert.equal(project.model, 'qwen3.5:9b-q4_K_M');
+  const changedAppearance = { ...defaultAppearance, userBubble: '#123456', fontSize: 18 };
+  assert.equal((await app.request(`/api/projects/${project.id}/appearance`, { method: 'POST', body: JSON.stringify({ appearance: changedAppearance }) })).status, 403);
+  const appearanceResponse = await app.request(`/api/projects/${project.id}/appearance`, {
+    method: 'POST', headers, body: JSON.stringify({ appearance: changedAppearance }),
+  });
+  assert.equal(appearanceResponse.status, 200);
+  assert.deepEqual((await appearanceResponse.json() as { appearance: unknown }).appearance, changedAppearance);
+  assert.deepEqual(project.appearance, changedAppearance);
+  assert.equal(regenerationCount, 1);
+  const invalidAppearance = await app.request(`/api/projects/${project.id}/appearance`, {
+    method: 'POST', headers, body: JSON.stringify({ appearance: { userBubble: 'red' } }),
+  });
+  assert.equal(invalidAppearance.status, 400);
+  assert.deepEqual(project.appearance, changedAppearance);
+});
+
+test('appearance settings accept safe colors and bounded chat typography', () => {
+  assert.deepEqual(parseAppearance({}), defaultAppearance);
+  assert.equal(parseAppearance({ agentNameColor: '#ABCDEF' }).agentNameColor, '#abcdef');
+  assert.equal(parseAppearance({ lineBreakSpacing: 8 }).lineBreakSpacing, 8);
+  assert.throws(() => parseAppearance({ lineBreakSpacing: 25 }), /lineBreakSpacing/);
+  assert.throws(() => parseAppearance({ fontSize: 100 }), /fontSize/);
+  assert.throws(() => parseAppearance({ lineHeight: '1.5' }), /lineHeight/);
+  assert.throws(() => parseAppearance({ textColor: 'var(--text)' }), /textColor/);
+  assert.throws(() => parseAppearance({ unknown: '#000000' }), /Unknown/);
 });
 
 test('project conversations retain only the latest 20 messages', () => {
@@ -225,16 +257,16 @@ test('project conversations retain only the latest 20 messages', () => {
 });
 
 test('project storage rejects identifiers that could escape the runtime folder', () => {
-  const project: Project = { id: '../outside', name: 'Invalid', docsPath: fixtureDocsPath, model: 'qwen3.5:2b-q4_K_M', settings: {}, createdAt: new Date(0).toISOString() };
+  const project: Project = { id: '../outside', name: 'Invalid', docsPath: fixtureDocsPath, model: 'qwen3.5:2b-q4_K_M', settings: {}, appearance: { ...defaultAppearance }, createdAt: new Date(0).toISOString() };
   assert.throws(() => projectFiles(project), /Invalid project identifier/);
 });
 
 test('a project reports an in-progress answer until it is persisted', async () => {
-  const project: Project = { id: 'pending-project', name: 'Pending', docsPath: fixtureDocsPath, model: 'qwen3.5:2b-q4_K_M', settings: {}, createdAt: new Date(0).toISOString() };
+  const project: Project = { id: 'pending-project', name: 'Pending', docsPath: fixtureDocsPath, model: 'qwen3.5:2b-q4_K_M', settings: {}, appearance: { ...defaultAppearance }, createdAt: new Date(0).toISOString() };
   let stored: ConversationMessage[] = [];
   const projects: ProjectService = {
     async list() { return [project]; }, async get() { return project; }, async create() { return project; }, async remove() {},
-    async setModel() { return project; }, async setSettings() { return project; }, async getMessages() { return stored; },
+    async setModel() { return project; }, async setSettings() { return project; }, async setAppearance() { return project; }, async getMessages() { return stored; },
     async addMessages(_id, messages) { stored = messages.map((message, index) => ({ ...message, id: String(index), createdAt: new Date(0).toISOString() })); return stored; },
     async clearMessages() { stored = []; },
   };
