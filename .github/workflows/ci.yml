@@ -16,12 +16,16 @@ concurrency:
 
 jobs:
   checks:
-    name: ${{ matrix.os }} checks
+    name: ${{ matrix.check_name }}
     runs-on: ${{ matrix.os }}
     timeout-minutes: 15
     strategy:
       matrix:
-        os: [windows-latest, ubuntu-latest]
+        include:
+          - os: windows-latest
+            check_name: Windows checks
+          - os: ubuntu-latest
+            check_name: Linux checks
     defaults:
       run:
         shell: bash
