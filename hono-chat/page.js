@@ -25,6 +25,20 @@ const settingsList = document.querySelector('#settings-list');
 const applySettings = document.querySelector('#apply-settings');
 const reindexWrap = document.querySelector('#reindex-wrap');
 const reindexSettings = document.querySelector('#reindex-settings');
+const technicalTab = document.querySelector('#technical-tab');
+const visualTab = document.querySelector('#visual-tab');
+const technicalPanel = document.querySelector('#technical-panel');
+const visualPanel = document.querySelector('#visual-panel');
+const appearanceControls = [...document.querySelectorAll('[data-appearance]')];
+const applyAppearanceButton = document.querySelector('#apply-appearance');
+const resetAppearanceButton = document.querySelector('#reset-appearance');
+
+const defaultAppearance = {
+  chatBackground: '#0c121d', userBubble: '#254b72', agentBubble: '#172131',
+  textColor: '#edf3fc', agentNameColor: '#65d6b4',
+  lineHeight: 1.55, lineBreakSpacing: 0, letterSpacing: 0, fontSize: 15,
+};
+const appearanceNumbers = new Set(['lineHeight', 'lineBreakSpacing', 'letterSpacing', 'fontSize']);
 
 const maintenanceHeaders = { 'X-Local-RAG': '1', 'Content-Type': 'application/json' };
 const managedSettings = new Set([
@@ -41,6 +55,44 @@ let activeProject = null;
 let loadedSettings = [];
 const pendingChats = new Map();
 let noticeTimer;
+
+function applyAppearance(appearance = defaultAppearance) {
+  const style = document.documentElement.style;
+  style.setProperty('--chat-bg', appearance.chatBackground);
+  style.setProperty('--user', appearance.userBubble);
+  style.setProperty('--bot', appearance.agentBubble);
+  style.setProperty('--chat-text', appearance.textColor);
+  style.setProperty('--agent-name', appearance.agentNameColor);
+  style.setProperty('--chat-line-height', appearance.lineHeight);
+  style.setProperty('--chat-break-spacing', `${appearance.lineBreakSpacing}px`);
+  style.setProperty('--chat-letter-spacing', `${appearance.letterSpacing}px`);
+  style.setProperty('--chat-font-size', `${appearance.fontSize}px`);
+}
+
+function fillAppearance(appearance = defaultAppearance) {
+  for (const control of appearanceControls) control.value = appearance[control.dataset.appearance];
+}
+
+function readAppearance() {
+  const appearance = {};
+  for (const control of appearanceControls) {
+    if (!control.reportValidity()) return null;
+    const key = control.dataset.appearance;
+    appearance[key] = appearanceNumbers.has(key) ? Number(control.value) : control.value;
+  }
+  return appearance;
+}
+
+function selectSettingsTab(tab) {
+  const visual = tab === visualTab;
+  technicalTab.setAttribute('aria-selected', String(!visual));
+  visualTab.setAttribute('aria-selected', String(visual));
+  technicalTab.tabIndex = visual ? -1 : 0;
+  visualTab.tabIndex = visual ? 0 : -1;
+  technicalPanel.hidden = visual;
+  visualPanel.hidden = !visual;
+  hideSettingTooltip();
+}
 const settingTooltip = document.createElement('div');
 settingTooltip.className = 'setting-tooltip';
 settingTooltip.id = 'setting-tooltip';
@@ -193,6 +245,7 @@ function selectProject(id) {
   activeProjectName.textContent = selected.name;
   activeProjectPath.textContent = selected.docsPath;
   modelName.textContent = selected.model;
+  applyAppearance(selected.appearance || defaultAppearance);
   setControlsEnabled(true);
   renderProjects();
   resetChat();
@@ -210,6 +263,7 @@ async function loadProjects(preferredId) {
   const selected = projects.find(project => project.id === selectedId) || projects[0];
   if (selected) selectProject(selected.id);
   else {
+    applyAppearance();
     activeProjectName.textContent = 'No projects';
     activeProjectPath.textContent = 'Add a project to get started';
     setControlsEnabled(false);
@@ -264,7 +318,12 @@ function message(role, text, sources = [], meta = null) {
   }
   const bubble = document.createElement('div');
   bubble.className = 'bubble';
-  bubble.textContent = text;
+  for (const line of text.replace(/\r\n?/g, '\n').split('\n')) {
+    const span = document.createElement('span');
+    span.className = 'chat-line';
+    span.textContent = line || '\u00a0';
+    bubble.append(span);
+  }
   if (sources.length) {
     const list = document.createElement('details');
     list.className = 'sources';
@@ -551,10 +610,58 @@ async function loadSettings() {
   } catch (error) { settingsList.textContent = `Error: ${error.message || 'Could not load settings.'}`; }
 }
 
-settingsButton.addEventListener('click', () => { settingsDialog.showModal(); void loadSettings(); });
+settingsButton.addEventListener('click', () => {
+  fillAppearance(activeProject?.appearance || defaultAppearance);
+  selectSettingsTab(technicalTab);
+  settingsDialog.showModal();
+  void loadSettings();
+});
+technicalTab.addEventListener('click', () => selectSettingsTab(technicalTab));
+visualTab.addEventListener('click', () => selectSettingsTab(visualTab));
+for (const tab of [technicalTab, visualTab]) {
+  tab.addEventListener('keydown', event => {
+    if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
+    event.preventDefault();
+    const next = event.key === 'Home' ? technicalTab : event.key === 'End' ? visualTab
+      : tab === technicalTab ? visualTab : technicalTab;
+    selectSettingsTab(next);
+    next.focus();
+  });
+}
+for (const control of appearanceControls) {
+  control.addEventListener('input', () => {
+    if (appearanceControls.every(item => item.validity.valid)) applyAppearance(readAppearance());
+  });
+}
+resetAppearanceButton.addEventListener('click', () => {
+  fillAppearance();
+  applyAppearance();
+});
+applyAppearanceButton.addEventListener('click', async () => {
+  if (!activeProject) return;
+  const appearance = readAppearance();
+  if (!appearance) return;
+  const projectId = activeProject.id;
+  const oldText = applyAppearanceButton.textContent;
+  applyAppearanceButton.disabled = true;
+  applyAppearanceButton.textContent = 'Saving…';
+  try {
+    const data = await requestJson(`/api/projects/${encodeURIComponent(projectId)}/appearance`, {
+      method: 'POST', headers: maintenanceHeaders, body: JSON.stringify({ appearance }),
+    });
+    const savedProject = projects.find(project => project.id === projectId);
+    if (savedProject) savedProject.appearance = data.appearance;
+    if (activeProject?.id === projectId) applyAppearance(data.appearance);
+    notify('Visual settings saved for this project.');
+  } catch (error) { notify(error.message || 'Could not save visual settings.', true); }
+  finally { applyAppearanceButton.textContent = oldText; applyAppearanceButton.disabled = false; }
+});
 closeSettings.addEventListener('click', () => settingsDialog.close());
 settingsDialog.addEventListener('click', event => { if (event.target === settingsDialog) settingsDialog.close(); });
-settingsDialog.addEventListener('close', hideSettingTooltip);
+settingsDialog.addEventListener('close', () => {
+  hideSettingTooltip();
+  applyAppearance(activeProject?.appearance || defaultAppearance);
+});
 applySettings.addEventListener('click', async () => {
   const values = {};
   for (const control of settingsList.querySelectorAll('[data-key]')) if (!control.disabled) values[control.dataset.key] = control.value;

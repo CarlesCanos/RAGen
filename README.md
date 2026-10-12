@@ -71,6 +71,11 @@ The **Settings** panel is project-specific. Hover over the `?` beside a setting 
 what it controls, expected values, and the practical effect of raising or lowering it.
 Settings that affect document indexing show an option to regenerate the index.
 
+The **Technical** tab contains the RAG settings. The **Visual** tab lets you change the
+chat background, user and agent bubble colors, text and agent name colors, line spacing,
+extra space after line breaks, character spacing, and font size. Visual changes are saved per project and do not
+require regenerating the index.
+
 The default answer language is English. Change `ASK_PREFERRED_LANGUAGE` in the project
 settings to request another language.
 

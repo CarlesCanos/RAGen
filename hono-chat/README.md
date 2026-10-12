@@ -28,6 +28,9 @@ remove the project. Removing a project never deletes its original document folde
 - Regenerate the RAG after changing documents.
 - Install or select a compatible Qwen 3.5 model per project.
 - Edit validated RAG settings per project.
+- Customize chat colors and typography in Settings > Visual, independently for each project.
+  Line spacing controls lines within a block; space after line break adds a separate gap
+  between explicit lines and paragraphs.
 
 Queries and index rebuilds share a queue so the app cannot read an index while a new
 version is being published. API bodies are limited to 64 KiB, and `/api/ask` accepts up
