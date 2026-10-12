@@ -40,6 +40,8 @@ margin. A missing or incompatible tokenizer causes an error instead of a silent 
 
 ## Diagnostics
 
+The commands below use Windows `npm.cmd`; on Linux use `npm`.
+
 ```powershell
 npm.cmd run doctor
 npm.cmd run ask -- "Your question" --metrics

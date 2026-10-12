@@ -52,10 +52,29 @@ function fixedWindowRateLimit(limit: number, windowMs: number): MiddlewareHandle
   };
 }
 
+function openExplorer(folder: string): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const child = spawn('explorer.exe', [folder], { detached: true, stdio: 'ignore', windowsHide: false });
+    child.once('error', reject);
+    child.once('spawn', () => { child.unref(); resolve(); });
+  });
+}
+
 export const localMaintenance: Maintenance = {
-  openDocuments(project) {
-    if (process.platform !== 'win32') throw new Error('Opening the folder automatically is only configured for Windows.');
-    spawn('explorer.exe', [project?.docsPath ?? path.join(ragRoot, 'docs')], { detached: true, stdio: 'ignore', windowsHide: false }).unref();
+  async openDocuments(project) {
+    const folder = project?.docsPath ?? path.join(ragRoot, 'docs');
+    if (process.platform === 'win32') {
+      await openExplorer(folder);
+    } else if (process.platform === 'linux') {
+      try { await execFileAsync('xdg-open', [folder], { timeout: 10000 }); }
+      catch (error) {
+        if (!process.env.WSL_DISTRO_NAME) throw error;
+        const { stdout } = await execFileAsync('wslpath', ['-w', folder], { timeout: 10000 });
+        await openExplorer(stdout.trim());
+      }
+    } else {
+      throw new Error('Opening folders is unsupported on this platform.');
+    }
   },
   async regenerate(project) {
     const { stdout } = await execFileAsync(process.execPath, ['src/prepareRag.ts'], {
@@ -172,10 +191,25 @@ export function createApp(runAsk: Ask = askRag, maintenance: Maintenance = local
 
   app.post('/api/folders/select', async c => {
     if (c.req.header('X-Local-RAG') !== '1') return c.json({ error: 'Invalid local request.' }, 403);
-    if (process.platform !== 'win32') return c.json({ error: 'The native folder picker is only available on Windows.' }, 501);
-    const command = "Add-Type -AssemblyName System.Windows.Forms; $dialog = New-Object System.Windows.Forms.FolderBrowserDialog; $dialog.Description = 'Select the documents folder'; $dialog.ShowNewFolderButton = $true; if ($dialog.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) { [Console]::OutputEncoding = [System.Text.Encoding]::UTF8; Write-Output $dialog.SelectedPath }";
     try {
-      const { stdout } = await execFileAsync('powershell.exe', ['-NoProfile', '-STA', '-Command', command], { windowsHide: false, timeout: 10 * 60 * 1000 });
+      let stdout: string;
+      if (process.platform === 'win32') {
+        const command = "Add-Type -AssemblyName System.Windows.Forms; $dialog = New-Object System.Windows.Forms.FolderBrowserDialog; $dialog.Description = 'Select the documents folder'; $dialog.ShowNewFolderButton = $true; if ($dialog.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) { [Console]::OutputEncoding = [System.Text.Encoding]::UTF8; Write-Output $dialog.SelectedPath }";
+        ({ stdout } = await execFileAsync('powershell.exe', ['-NoProfile', '-STA', '-Command', command], { windowsHide: false, timeout: 10 * 60 * 1000 }));
+      } else if (process.platform === 'linux') {
+        if (!process.env.DISPLAY && !process.env.WAYLAND_DISPLAY) return c.json({ manualEntry: true });
+        let picker: { command: string; args: string[] } | undefined;
+        for (const candidate of [
+          { command: 'zenity', args: ['--file-selection', '--directory', '--title=Select the documents folder'] },
+          { command: 'kdialog', args: ['--getexistingdirectory', '.', '--title', 'Select the documents folder'] },
+        ]) {
+          try { await execFileAsync('which', [candidate.command]); picker = candidate; break; }
+          catch { /* Try the next desktop picker. */ }
+        }
+        if (!picker) return c.json({ manualEntry: true });
+        try { ({ stdout } = await execFileAsync(picker.command, picker.args, { timeout: 10 * 60 * 1000 })); }
+        catch (error) { if ((error as { code?: number }).code === 1) return c.json({ cancelled: true }); throw error; }
+      } else return c.json({ manualEntry: true });
       const selectedPath = stdout.trim();
       return selectedPath ? c.json({ path: selectedPath }) : c.json({ cancelled: true });
     } catch (error) { console.error('[hono-chat] folder picker', error); return c.json({ error: 'Could not open the folder picker.' }, 500); }

@@ -5,7 +5,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "start:chroma": "powershell -ExecutionPolicy Bypass -File ./scripts/start-chroma.ps1",
+    "start:chroma": "node ../scripts/platform.mjs chroma",
     "prepare-rag": "node src/prepareRag.ts",
     "setup:rag": "node src/setupRag.ts",
     "doctor": "node src/doctor.ts",

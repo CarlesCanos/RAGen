@@ -16,9 +16,15 @@ concurrency:
 
 jobs:
   checks:
-    name: Windows checks
-    runs-on: windows-latest
+    name: ${{ matrix.os }} checks
+    runs-on: ${{ matrix.os }}
     timeout-minutes: 15
+    strategy:
+      matrix:
+        os: [windows-latest, ubuntu-latest]
+    defaults:
+      run:
+        shell: bash
 
     steps:
       - name: Check out repository
@@ -33,10 +39,10 @@ jobs:
           cache: npm
 
       - name: Install dependencies
-        run: npm.cmd ci
+        run: npm ci
 
       - name: Type-check
-        run: npm.cmd run typecheck
+        run: npm run typecheck
 
       - name: Run tests
-        run: npm.cmd test
+        run: npm test

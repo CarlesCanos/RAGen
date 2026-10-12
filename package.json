@@ -1,7 +1,7 @@
 {
   "name": "ragen-local",
   "version": "1.1.0",
-  "description": "A lightweight, no-Docker local RAG for Windows using Ollama and Chroma.",
+  "description": "A lightweight, no-Docker local RAG for Windows and Linux using Ollama and Chroma.",
   "license": "MIT",
   "author": "Carles Canos",
   "private": true,
@@ -21,7 +21,7 @@
     "hono-chat"
   ],
   "scripts": {
-    "launch": "powershell -NoProfile -ExecutionPolicy Bypass -File ./start-local-rag.ps1",
+    "launch": "node scripts/platform.mjs launch",
     "chat": "npm --workspace hono-chat run start",
     "ask": "npm --workspace rag run ask --",
     "prepare-rag": "npm --workspace rag run prepare-rag",

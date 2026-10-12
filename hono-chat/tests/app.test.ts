@@ -107,6 +107,22 @@ test('document and regeneration actions require a local header and preserve meta
   assert.equal(regenerated, 1);
 });
 
+test('Linux without a desktop picker offers manual project folder entry', { skip: process.platform !== 'linux' }, async () => {
+  const display = process.env.DISPLAY;
+  const wayland = process.env.WAYLAND_DISPLAY;
+  delete process.env.DISPLAY;
+  delete process.env.WAYLAND_DISPLAY;
+  try {
+    const app = createApp(async () => result);
+    const response = await app.request('/api/folders/select', { method: 'POST', headers: { 'X-Local-RAG': '1' } });
+    assert.equal(response.status, 200);
+    assert.deepEqual(await response.json(), { manualEntry: true });
+  } finally {
+    if (display === undefined) delete process.env.DISPLAY; else process.env.DISPLAY = display;
+    if (wayland === undefined) delete process.env.WAYLAND_DISPLAY; else process.env.WAYLAND_DISPLAY = wayland;
+  }
+});
+
 test('hardware ratings are dynamic and conservative without detected VRAM', () => {
   const gpu = { gpu: 'Test GPU', vramBytes: 8e9, ramBytes: 32e9, detection: 'test' };
   assert.equal(rateForHardware(3.4e9, gpu).rating, 'green');

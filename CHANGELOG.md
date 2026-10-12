@@ -2,6 +2,13 @@
 
 All notable changes to RAGen are documented in this file.
 
+## Unreleased
+
+- Added a Linux launcher that installs missing Node.js, Ollama, dependencies,
+  models, tokenizer, and the verified Chroma runtime, then starts the local app.
+- Added Linux folder selection and opening, with manual path entry for headless
+  desktops, a clear WSL1 prerequisite error, and checks on both Windows and Ubuntu in CI.
+
 ## [1.1.0] - 2026-10-12
 
 ### Highlights

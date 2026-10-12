@@ -1,7 +1,7 @@
 # Contributing
 
 Thanks for helping improve RAGen Local. Keep changes focused, local-first, and easy to
-run on Windows. By participating, you agree to follow the
+run on Windows and Linux. By participating, you agree to follow the
 [Code of Conduct](CODE_OF_CONDUCT.md).
 
 ## Development setup
@@ -13,6 +13,8 @@ npm.cmd ci
 npm.cmd run typecheck
 npm.cmd test
 ```
+
+On Linux use `npm ci`, `npm run typecheck`, and `npm test`.
 
 Live integration tests also require Ollama, Chroma, the configured models, and a prepared
 index. Regular tests do not require those services.
