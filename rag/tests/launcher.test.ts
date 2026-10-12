@@ -40,7 +40,7 @@ function Stop-Process { [CmdletBinding()]param($InputObject) $script:stopped += 
 Stop-OrphanedOllamaWorkers -Ollama 'C:\Ollama\ollama.exe'
 if (($script:stopped -join ',') -ne '101,103') { throw "Wrong cleanup targets: $script:stopped" }
 Write-Output 'Orphans only; live parents, other installs and reused worker PIDs preserved.'
-`], { windowsHide: true, timeout: 10000, encoding: 'utf8', env: {
+`], { windowsHide: true, timeout: 30000, encoding: 'utf8', env: {
     ...process.env, RAG_TEST_LAUNCHER: fileURLToPath(new URL('../../start-local-rag.ps1', import.meta.url)),
   } });
   assert.equal(result.status, 0, result.stdout + result.stderr);

@@ -4,10 +4,15 @@ All notable changes to RAGen are documented in this file.
 
 ## Unreleased
 
+## [1.2.0] - 2026-10-12
+
+### Highlights
+
 - Added a Linux launcher that installs missing Node.js, Ollama, dependencies,
   models, tokenizer, and the verified Chroma runtime, then starts the local app.
 - Added Linux folder selection and opening, with manual path entry for headless
   desktops, a clear WSL1 prerequisite error, and checks on both Windows and Ubuntu in CI.
+- Updated the manual Chroma start commands to honor the configured host and port.
 
 ## [1.1.0] - 2026-10-12
 
@@ -43,5 +48,6 @@ First stable release.
 - Automated Windows CI, CodeQL scanning, Dependabot updates, secret scanning, and
   push protection.
 
+[1.2.0]: https://github.com/CarlesCanos/RAGen/compare/v1.1.0...v1.2.0
 [1.1.0]: https://github.com/CarlesCanos/RAGen/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/CarlesCanos/RAGen/releases/tag/v1.0.0
