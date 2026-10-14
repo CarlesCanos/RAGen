@@ -3,43 +3,95 @@
 [![CI](https://github.com/CarlesCanos/RAGen/actions/workflows/ci.yml/badge.svg)](https://github.com/CarlesCanos/RAGen/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-A small local-first RAG for Windows and native Linux. Choose one or more document folders,
-build an independent RAG project for each one, and ask questions through a local web interface.
-Answers are generated locally with Ollama, Qwen, EmbeddingGemma, and Chroma.
+A local-first tool for asking questions about your documents. Choose a document folder,
+build a searchable index, and ask questions in a local web interface. You can create
+multiple projects, each with its own documents and index. RAGen uses Ollama with Qwen
+to answer, EmbeddingGemma to index documents, and Chroma to search them.
+
+## Demo
+
+See RAGen launch, open its local interface, and answer a question about indexed documents:
+
+![Demo of RAGen from launch to the first document question](assets/ragen-workflow.gif)
 
 ## Quick start
 
-Requirements: Windows 10 or 11 with App Installer (`winget`), or native x86_64 Linux
-(such as Ubuntu) with `bash`, `curl`, `tar`, `sha256sum`, and `setsid`. An internet
-connection is needed for the first setup. Linux ARM64 can run the app with an
-existing Chroma server, but the bundled Chroma download is currently x86_64 only.
+Download the ZIP from the [RAGen repository](https://github.com/CarlesCanos/RAGen)
+and extract it, or clone it with Git:
 
-1. Clone or download this repository.
-2. On Windows, double-click `START-RAG.cmd`. On Linux, run `bash START-RAG.sh` in a terminal.
-3. Wait for RAGen to open at `http://127.0.0.1:8787`. If the browser does not open,
-   visit that address yourself.
+```text
+git clone https://github.com/CarlesCanos/RAGen.git
+```
 
-The first start installs missing tools, downloads the required local models and runtime,
-then prepares the initial index. Later starts reuse them. Linux may request your sudo
-password while installing `zstd` and Ollama. Close RAGen by pressing Enter in the
-launcher terminal.
+Keep the full repository folder: the launcher uses files inside it. You need an
+internet connection for the first run and a browser to use the interface. You do not
+need to install Python or Docker.
+
+### Windows 10 or 11
+
+1. Make sure **App Installer** is available so `winget` works. In PowerShell, run
+   `winget --version` to check. If the command is missing, install or update
+   **App Installer** from the Microsoft Store.
+2. Open the repository folder in File Explorer and double-click `START-RAG.cmd`.
+   You can also run `.\START-RAG.cmd` from PowerShell in that folder.
+3. Keep the launcher window open. When it says **RAGen is ready**, use the browser
+   window it opens, or visit the address printed in the window (by default,
+   <http://127.0.0.1:8787>).
+
+The launcher installs Node.js and Ollama through `winget` if needed, installs the
+project's npm packages, downloads the models and Chroma runtime, and prepares the
+initial document index. The first run can take a while. Later runs reuse the downloads.
+
+### Linux (x86_64)
+
+1. Make sure `bash`, `curl`, `tar`, `sha256sum`, and `setsid` are available. On
+   Ubuntu or Debian, you can install them with:
+
+   ```bash
+   sudo apt-get update
+   sudo apt-get install -y bash curl tar coreutils util-linux
+   ```
+
+2. Open a terminal in the repository folder and start RAGen:
+
+   ```bash
+   bash START-RAG.sh
+   ```
+
+3. Keep the terminal open. When it says **RAGen is ready**, use the browser it
+   opens, or visit the address printed in the terminal (by default,
+   <http://127.0.0.1:8787>). On a Linux system without a desktop browser, open
+   that address in a browser on the same computer.
+
+The launcher downloads Node.js if needed, installs the npm packages, installs Ollama
+and `zstd` if needed, downloads the models and Chroma runtime, and prepares the
+initial document index. It may ask for your `sudo` password while installing system
+packages. Later runs reuse the downloads.
+
+The bundled Chroma executable supports x86_64 Linux. On Linux ARM64, RAGen can run
+only if a compatible Chroma server is already running on the configured local address.
+
+On either platform, press **Enter** in the launcher window or terminal to stop the
+services it started.
 
 ### Optional: WSL2 on a Windows computer
 
 On Windows with WSL, use WSL2. Check with `wsl --list --verbose` in PowerShell; if
 Ubuntu is on version 1, convert it with `wsl --set-version Ubuntu 2` before running
-RAGen. Use a separate Linux clone inside WSL (for example, under your
-Linux home directory), then run `bash START-RAG.sh` there. Sharing one checkout between
-Windows and WSL makes `node_modules` change platforms on each start. WSL without a
-Linux desktop folder picker lets you enter an absolute document path in the chat.
-
-![RAGen workflow: launching START-RAG.cmd, opening the local interface, and sending the first question](assets/ragen-workflow.gif)
+RAGen. Make a separate clone inside the WSL Linux filesystem (for example, in your
+Linux home directory), then follow the Linux steps above. Using one checkout for
+both Windows and WSL makes `node_modules` switch platforms on each start. If WSL
+has no Linux folder picker, enter an absolute document path in the chat.
 
 ## Use
 
-1. Create a project and choose its document folder.
-2. Select **Regenerate RAG** to index the folder.
-3. Ask questions in the chat.
+1. Create a project and choose the folder containing your documents.
+2. Select **Regenerate RAG** to index the documents in that folder.
+3. Ask a question in the chat.
+
+If the initial document folder is empty, the launcher creates a `GET-STARTED.md`
+sample document so you can try RAGen immediately. You can remove it after adding
+your own documents.
 
 Each project has its own folder, model, settings, index, search collection, and saved
 conversation. The interface supports Markdown, MDX, text, HTML, and PDF files. It keeps
@@ -77,6 +129,12 @@ To follow the newest log from the repository root:
 ```powershell
 $ragLog = Get-ChildItem .\rag\.runtime\logs\*.jsonl | Sort-Object LastWriteTime -Descending | Select-Object -First 1
 Get-Content -LiteralPath $ragLog.FullName -Tail 30 -Wait
+```
+
+On Linux:
+
+```bash
+tail -n 30 -f "$(ls -t rag/.runtime/logs/*.jsonl | head -n 1)"
 ```
 
 ## Settings
@@ -123,8 +181,8 @@ prints a warning and continues.
 
 ## Development
 
-From the repository root with Node.js 22.18 or later. On Windows use `npm.cmd`;
-on Linux use `npm`:
+For development, use Node.js 22.18 or later. Run these commands from the
+repository root. On Windows (PowerShell):
 
 ```powershell
 npm.cmd ci
@@ -133,9 +191,17 @@ npm.cmd test
 npm.cmd run launch
 ```
 
-The equivalent Linux commands are `npm ci`, `npm run typecheck`, `npm test`, and
-`npm run launch`. The bootstrap command `bash START-RAG.sh` also works before Node.js
-is installed.
+On Linux:
+
+```bash
+npm ci
+npm run typecheck
+npm test
+npm run launch
+```
+
+The Linux bootstrap command `bash START-RAG.sh` also works before Node.js is
+installed.
 
 See [RAG engine](rag/README.md), [chat interface](hono-chat/README.md),
 [CONTRIBUTING.md](CONTRIBUTING.md), and [CHANGELOG.md](CHANGELOG.md) for implementation,
